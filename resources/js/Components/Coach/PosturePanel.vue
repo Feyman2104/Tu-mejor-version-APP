@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, onBeforeUnmount } from 'vue'
 import { router } from '@inertiajs/vue3'
-import { useMediaPipe, type PoseResults } from '@/composables/useMediaPipe'
-import { usePostureFeedback } from '@/composables/usePostureFeedback'
+import { useMediaPipe, type PoseResults } from '@/Composables/useMediaPipe'
+import { usePostureFeedback } from '@/Composables/usePostureFeedback'
 
 const EXERCISES = [
   { id: 'squat',           label: 'Sentadilla' },
@@ -14,12 +14,13 @@ const EXERCISES = [
 ]
 
 const selectedExercise = ref('squat')
-const started = ref(false)
+const started      = ref(false)
+const initializing = ref(false)
 
-const videoRef = ref<HTMLVideoElement | null>(null)
+const videoRef  = ref<HTMLVideoElement | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 
-const { isRunning, errorMessage, start, stop } = useMediaPipe()
+const { isRunning, errorMessage, start, stop, librariesLoaded } = useMediaPipe()
 const { currentFeedback, score, repCount, processFrame, reset } = usePostureFeedback()
 
 function onResults(results: PoseResults) {
@@ -28,9 +29,17 @@ function onResults(results: PoseResults) {
 
 async function startAnalysis() {
   if (!videoRef.value || !canvasRef.value) return
+  initializing.value = true
+  errorMessage.value = null
   reset()
-  started.value = true
+
   await start(videoRef.value, canvasRef.value, onResults)
+
+  initializing.value = false
+  // Solo marcamos started si realmente arrancó sin error
+  if (!errorMessage.value) {
+    started.value = true
+  }
 }
 
 async function stopAnalysis() {
@@ -38,7 +47,7 @@ async function stopAnalysis() {
   started.value = false
 }
 
-// Exponer stop para que el padre pueda detener la cámara al cerrar la modal
+// Exponer para que CoachModal detenga la cámara al cerrar
 defineExpose({ stopAnalysis })
 
 onBeforeUnmount(() => stop())
@@ -53,7 +62,7 @@ function saveSession() {
   router.post(route('posture.sessions.store'), {
     exercise_slug: selectedExercise.value,
     score: score.value,
-    feedback: currentFeedback.value.map(f => f.message),
+    feedback: currentFeedback.value.map((f: any) => f.message),
     duration_sec: 0,
   }, { onSuccess: () => stopAnalysis() })
 }
@@ -62,8 +71,8 @@ function saveSession() {
 <template>
   <div style="height:100%;overflow-y:auto;padding:16px;">
 
-    <!-- Exercise selector -->
-    <div v-if="!started" style="margin-bottom:16px;">
+    <!-- Exercise selector (solo antes de iniciar) -->
+    <div v-if="!started && !initializing" style="margin-bottom:16px;">
       <div style="font-size:10px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">Ejercicio a analizar</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;">
         <button v-for="ex in EXERCISES" :key="ex.id"
@@ -80,15 +89,24 @@ function saveSession() {
     <!-- Camera view -->
     <div style="position:relative;border-radius:16px;background:#0D0D0D;border:1px solid rgba(255,255,255,0.06);overflow:hidden;aspect-ratio:4/3;margin-bottom:12px;">
       <video ref="videoRef" style="display:none;" playsinline></video>
-      <canvas ref="canvasRef" style="width:100%;height:100%;object-fit:cover;" :style="started ? '' : 'display:none;'"></canvas>
+      <canvas ref="canvasRef"
+        style="width:100%;height:100%;object-fit:cover;"
+        :style="started && isRunning ? '' : 'display:none;'"
+      ></canvas>
 
-      <!-- Placeholder -->
-      <div v-if="!started" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;">
+      <!-- Placeholder: antes de iniciar -->
+      <div v-if="!started && !initializing" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;">
         <div style="width:56px;height:56px;border-radius:16px;background:rgba(29,244,18,0.08);border:1px solid rgba(29,244,18,0.2);display:flex;align-items:center;justify-content:center;margin-bottom:12px;color:#1DF412;">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
         </div>
         <p style="font-size:13px;font-weight:700;color:#fff;margin-bottom:6px;">Cámara lista</p>
-        <p style="font-size:12px;color:#9CA3AF;line-height:1.4;">Colócate de perfil a 2–3 metros para que capte todo tu cuerpo.</p>
+        <p style="font-size:12px;color:#9CA3AF;line-height:1.4;">Colócate de perfil a 2–3 m para que capte todo tu cuerpo.</p>
+      </div>
+
+      <!-- Loading: cargando librerías -->
+      <div v-if="initializing" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;">
+        <div style="width:40px;height:40px;border-radius:50%;border:3px solid rgba(29,244,18,0.2);border-top-color:#1DF412;animation:spin 0.9s linear infinite;"></div>
+        <p style="font-size:12px;color:#9CA3AF;">Cargando detector de postura...</p>
       </div>
 
       <!-- Live overlays -->
@@ -102,19 +120,26 @@ function saveSession() {
       </div>
     </div>
 
-    <!-- Error -->
-    <div v-if="errorMessage" style="margin-bottom:12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:10px 14px;font-size:12px;color:#EF4444;">
-      {{ errorMessage }}
+    <!-- Error con diagnóstico -->
+    <div v-if="errorMessage" style="margin-bottom:12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:12px;padding:12px 14px;">
+      <p style="font-size:12px;color:#EF4444;margin-bottom:8px;">{{ errorMessage }}</p>
+      <div v-if="!librariesLoaded()" style="font-size:11px;color:#6B7280;margin-bottom:8px;line-height:1.4;">
+        💡 Verifica tu conexión a internet — el analizador necesita cargar MediaPipe desde CDN.
+      </div>
+      <button @click="startAnalysis"
+        style="font-size:12px;font-weight:700;background:rgba(239,68,68,0.15);color:#EF4444;border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:6px 12px;cursor:pointer;">
+        Reintentar
+      </button>
     </div>
 
     <!-- Controls -->
     <div style="display:flex;gap:8px;margin-bottom:16px;">
-      <button v-if="!started" @click="startAnalysis"
+      <button v-if="!started && !initializing" @click="startAnalysis"
         style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;background:#1DF412;color:#000;border:none;border-radius:12px;padding:14px;font-size:14px;cursor:pointer;box-shadow:0 4px 20px rgba(29,244,18,0.3);">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
         Iniciar análisis
       </button>
-      <template v-else>
+      <template v-if="started">
         <button @click="saveSession"
           style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:700;background:#1DF412;color:#000;border:none;border-radius:12px;padding:14px;font-size:14px;cursor:pointer;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -153,3 +178,7 @@ function saveSession() {
 
   </div>
 </template>
+
+<style scoped>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>

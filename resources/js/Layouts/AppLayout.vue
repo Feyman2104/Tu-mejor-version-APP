@@ -16,22 +16,10 @@ const navItems = [
     icon: `<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>`,
   },
   {
-    name: 'Hoy',
+    name: 'Entrenamiento',
     routeName: 'workout.today',
     urlPrefix: '/workout',
-    icon: `<rect x="4" y="10" width="4" height="4" rx="1"/><rect x="16" y="10" width="4" height="4" rx="1"/><line x1="8" y1="12" x2="16" y2="12"/>`,
-  },
-  {
-    name: 'Coach IA',
-    routeName: 'chat.index',
-    urlPrefix: '/chat',
-    icon: `<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>`,
-  },
-  {
-    name: 'Postura',
-    routeName: 'posture.index',
-    urlPrefix: '/posture',
-    icon: `<circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/>`,
+    icon: `<path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/>`,
   },
   {
     name: 'Progreso',
@@ -50,7 +38,7 @@ function isActive(urlPrefix: string): boolean {
 // FAB — Coach modal
 const coachOpen = ref(false)
 
-// Ocultar FAB en las páginas de Chat y Postura (ya tienen esa funcionalidad de forma nativa)
+// Ocultar FAB solo en /chat y /posture (páginas completas que ya incluyen esa funcionalidad)
 const hideFab = computed(() => {
   const url = page.url
   return url.startsWith('/chat') || url.startsWith('/posture')
