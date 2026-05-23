@@ -18,7 +18,8 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
 
-  @vite(['resources/js/app.ts', 'resources/css/app.css'])
+  @routes
+  @vite(['resources/js/app.ts'])
   @inertiaHead
 </head>
 <body class="antialiased">
