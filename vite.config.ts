@@ -5,13 +5,16 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
+// Configuración principal de Vite para el proyecto Tu Mejor Versión
+// Incluye: Vue 3, Laravel Inertia, Tailwind CSS v4 y soporte PWA
 export default defineConfig({
   plugins: [
+    // Plugin de Laravel para integración con Inertia y hot reload
     laravel({
       input: ['resources/js/app.ts'],
       refresh: true,
     }),
-    tailwindcss(),
+    // Plugin Vue 3 con configuración de URLs de assets
     vue({
       template: {
         transformAssetUrls: {
@@ -20,58 +23,55 @@ export default defineConfig({
         },
       },
     }),
+    // Tailwind CSS v4 vía plugin de Vite (NO como plugin de PostCSS)
+    tailwindcss(),
+    // Plugin PWA con Workbox para soporte offline y caché de assets
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
+      devOptions: { enabled: false },
+      includeAssets: ['favicon.ico', 'icons/*.png'],
       manifest: {
         name: 'Tu Mejor Versión',
-        short_name: 'TMV',
-        description: 'Plataforma de entrenamiento físico personalizado con IA',
-        theme_color: '#1DF412',
+        short_name: 'TuMejorVer',
+        description: 'Plataforma de entrenamiento físico personalizado con IA para universitarios',
+        theme_color: '#000000',
         background_color: '#000000',
         display: 'standalone',
         orientation: 'portrait',
-        scope: '/',
         start_url: '/',
         icons: [
-          { src: 'icons/icon-72x72.png',   sizes: '72x72',   type: 'image/png' },
-          { src: 'icons/icon-96x96.png',   sizes: '96x96',   type: 'image/png' },
-          { src: 'icons/icon-128x128.png', sizes: '128x128', type: 'image/png' },
-          { src: 'icons/icon-144x144.png', sizes: '144x144', type: 'image/png' },
-          { src: 'icons/icon-152x152.png', sizes: '152x152', type: 'image/png' },
-          { src: 'icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'icons/icon-384x384.png', sizes: '384x384', type: 'image/png' },
-          { src: 'icons/icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+          { src: '/icons/icon-72.png',   sizes: '72x72',   type: 'image/png' },
+          { src: '/icons/icon-96.png',   sizes: '96x96',   type: 'image/png' },
+          { src: '/icons/icon-128.png',  sizes: '128x128', type: 'image/png' },
+          { src: '/icons/icon-144.png',  sizes: '144x144', type: 'image/png' },
+          { src: '/icons/icon-152.png',  sizes: '152x152', type: 'image/png' },
+          { src: '/icons/icon-192.png',  sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+          { src: '/icons/icon-384.png',  sizes: '384x384', type: 'image/png' },
+          { src: '/icons/icon-512.png',  sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
       workbox: {
-        navigateFallback: '/offline',
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webm,woff2}'],
+        // Cachear assets estáticos generados por Vite
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Rutas a excluir del caché de Workbox
+        navigateFallbackDenylist: [/^\/api/, /^\/sanctum/],
         runtimeCaching: [
           {
-            urlPattern: /^https?:\/\/.*\/api\/.*/,
+            // Caché de respuestas del servidor (Inertia pages)
+            urlPattern: /^https?:\/\/.*\/(?!api)/,
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'api-cache',
-              networkTimeoutSeconds: 10,
-              expiration: { maxEntries: 50, maxAgeSeconds: 300 },
-            },
-          },
-          {
-            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp|webm)$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'assets-cache',
-              expiration: { maxEntries: 100, maxAgeSeconds: 86400 * 7 },
+              cacheName: 'inertia-pages',
+              expiration: { maxEntries: 50, maxAgeSeconds: 24 * 60 * 60 },
             },
           },
         ],
       },
-      devOptions: { enabled: false },
     }),
   ],
   resolve: {
     alias: {
+      // Alias @ apunta a resources/js para imports más limpios
       '@': path.resolve(__dirname, './resources/js'),
     },
   },

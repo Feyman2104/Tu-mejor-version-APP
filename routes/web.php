@@ -60,6 +60,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Chat
     Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
+    Route::post('/chat/send', [ChatController::class, 'send'])->name('chat.send');
 
     // Progreso
     Route::get('/progress', [ProgressController::class, 'index'])->name('progress.index');

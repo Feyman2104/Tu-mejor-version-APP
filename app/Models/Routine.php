@@ -13,7 +13,7 @@ class Routine extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'user_id', 'name', 'generated_by_ai',
+        'user_id', 'name', 'description', 'generated_by_ai',
         'goal', 'days_per_week', 'is_active',
     ];
 

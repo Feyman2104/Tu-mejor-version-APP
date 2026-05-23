@@ -4,9 +4,9 @@ export interface User {
   email: string
   role: 'student' | 'trainer' | 'admin'
   level: 'beginner' | 'intermediate' | 'advanced' | null
-  goal: 'fat_loss' | 'hypertrophy' | 'strength' | 'endurance' | 'mobility' | null
+  goal: 'fat_loss' | 'muscle_gain' | 'strength' | 'maintain' | 'flexibility' | 'cardio' | null
   equipment: string[] | null
-  injuries: Injury[] | null
+  injuries: string[] | null
   avatar: string | null
   onboarding_completed_at: string | null
 }
@@ -44,6 +44,7 @@ export interface RoutineExercise {
   rest_seconds: number
   rir: number | null
   order: number
+  notes: string | null
 }
 
 export interface RoutineDay {
@@ -57,6 +58,7 @@ export interface RoutineDay {
 export interface Routine {
   id: number
   name: string
+  description: string | null
   generated_by_ai: boolean
   goal: string
   days_per_week: number
@@ -66,6 +68,8 @@ export interface Routine {
 
 export interface WorkoutSet {
   id: number
+  workout_log_id: number
+  routine_exercise_id: number | null
   set_number: number
   reps_done: number | null
   weight_kg: number | null
@@ -75,21 +79,23 @@ export interface WorkoutSet {
 
 export interface WorkoutLog {
   id: number
+  routine_day_id: number | null
   date: string
   duration_minutes: number | null
   notes: string | null
   completed: boolean
-  routine_day: RoutineDay | null
-  sets: WorkoutSet[]
+  created_at: string
+  routine_day?: RoutineDay | null
+  sets?: WorkoutSet[]
 }
 
 export interface ProgressEntry {
   id: number
-  date: string
   weight_kg: number | null
   body_fat_pct: number | null
+  muscle_mass_kg: number | null
   notes: string | null
-  photo_url: string | null
+  recorded_at: string
 }
 
 export interface ChatMessage {
@@ -120,12 +126,19 @@ export interface TrainerStudent {
   accepted_at: string | null
 }
 
+export interface PaginationLink {
+  url: string | null
+  label: string
+  active: boolean
+}
+
 export interface PaginatedResponse<T> {
   data: T[]
   current_page: number
   last_page: number
   per_page: number
   total: number
+  links: PaginationLink[]
 }
 
 declare module '@inertiajs/vue3' {
