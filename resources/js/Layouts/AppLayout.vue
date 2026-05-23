@@ -8,11 +8,36 @@ const user = computed(() => page.props.auth.user as User | null)
 
 // Ítems de navegación principal con la ruta del segmento URL para detección activa
 const navItems = [
-  { name: 'Dashboard', routeName: 'dashboard',     urlPrefix: '/dashboard' },
-  { name: 'Hoy',       routeName: 'workout.today', urlPrefix: '/workout' },
-  { name: 'Coach IA',  routeName: 'chat.index',    urlPrefix: '/chat' },
-  { name: 'Postura',   routeName: 'posture.index', urlPrefix: '/posture' },
-  { name: 'Progreso',  routeName: 'progress.index',urlPrefix: '/progress' },
+  {
+    name: 'Dashboard',
+    routeName: 'dashboard',
+    urlPrefix: '/dashboard',
+    icon: `<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>`,
+  },
+  {
+    name: 'Hoy',
+    routeName: 'workout.today',
+    urlPrefix: '/workout',
+    icon: `<rect x="4" y="10" width="4" height="4" rx="1"/><rect x="16" y="10" width="4" height="4" rx="1"/><line x1="8" y1="12" x2="16" y2="12"/>`,
+  },
+  {
+    name: 'Coach IA',
+    routeName: 'chat.index',
+    urlPrefix: '/chat',
+    icon: `<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>`,
+  },
+  {
+    name: 'Postura',
+    routeName: 'posture.index',
+    urlPrefix: '/posture',
+    icon: `<circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/>`,
+  },
+  {
+    name: 'Progreso',
+    routeName: 'progress.index',
+    urlPrefix: '/progress',
+    icon: `<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>`,
+  },
 ]
 
 // Determina si el ítem de navegación es el activo según la URL actual
@@ -55,6 +80,9 @@ function isActive(urlPrefix: string): boolean {
           onmouseover="if(!this.style.background.includes('1DF412'))this.style.color='#fff'"
           onmouseout="if(!this.style.background.includes('1DF412'))this.style.color='#9CA3AF'"
         >
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+               class="flex-shrink-0" aria-hidden="true" v-html="item.icon" />
           <span class="text-sm font-semibold">{{ item.name }}</span>
         </Link>
       </nav>
@@ -112,6 +140,9 @@ function isActive(urlPrefix: string): boolean {
         class="flex flex-col items-center gap-0.5 px-2 py-2 rounded-xl transition-all flex-1"
         :style="isActive(item.urlPrefix) ? 'color:#1DF412' : 'color:#6B7280'"
       >
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true" v-html="item.icon" />
         <span class="text-xs font-semibold leading-tight text-center">{{ item.name }}</span>
       </Link>
     </nav>
