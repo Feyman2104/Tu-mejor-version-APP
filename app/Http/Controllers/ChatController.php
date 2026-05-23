@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ChatMessage;
 use App\Services\AICoachService;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response as HttpResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -23,7 +23,7 @@ class ChatController extends Controller
         ]);
     }
 
-    public function send(Request $request, AICoachService $ai): HttpResponse
+    public function send(Request $request, AICoachService $ai): StreamedResponse
     {
         $validated = $request->validate([
             'message' => ['required', 'string', 'max:2000'],
