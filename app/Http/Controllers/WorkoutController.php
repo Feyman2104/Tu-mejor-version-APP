@@ -23,6 +23,13 @@ class WorkoutController extends Controller
             ->latest()
             ->first();
 
+        // Detectar día ISO de la semana (1=lunes … 7=domingo)
+        // isoFormat('E') devuelve 1-7 compatible con Carbon <2.x y >2.x
+        $todayIso  = (int) now()->isoFormat('E');
+        $todayDay  = $routine?->days->firstWhere('day_number', $todayIso);
+        $isRestDay = $routine && ! $todayDay;
+
+        // Log activo de hoy (no completado)
         $todayLog = $user->workoutLogs()
             ->with('sets')
             ->whereDate('date', today())
@@ -30,9 +37,39 @@ class WorkoutController extends Controller
             ->latest()
             ->first();
 
+        // Última serie completada por ejercicio → mostrar "anterior" al usuario
+        $prevSets = [];
+        if ($routine) {
+            $exerciseIds = $routine->days
+                ->flatMap(fn ($d) => $d->exercises)
+                ->pluck('exercise_id')
+                ->unique();
+
+            foreach ($exerciseIds as $exId) {
+                $last = WorkoutSet::whereHas('workoutLog', fn ($q) => $q
+                        ->where('user_id', $user->id)
+                        ->where('completed', true)
+                    )
+                    ->whereHas('routineExercise', fn ($q) => $q->where('exercise_id', $exId))
+                    ->latest('completed_at')
+                    ->select('weight_kg', 'reps_done')
+                    ->first();
+
+                if ($last) {
+                    $prevSets[$exId] = [
+                        'weight_kg' => $last->weight_kg,
+                        'reps_done' => $last->reps_done,
+                    ];
+                }
+            }
+        }
+
         return Inertia::render('Workout/Today', [
-            'routine'  => $routine,
-            'todayLog' => $todayLog,
+            'routine'   => $routine,
+            'todayDay'  => $todayDay,
+            'isRestDay' => $isRestDay,
+            'todayLog'  => $todayLog,
+            'prevSets'  => $prevSets,  // [exercise_id => {weight_kg, reps_done}]
         ]);
     }
 
