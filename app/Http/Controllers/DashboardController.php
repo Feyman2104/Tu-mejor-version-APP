@@ -22,16 +22,22 @@ class DashboardController extends Controller
         $streak     = $this->calculateStreak($logs);
         $weekDays   = $this->weekActivity($logs);
 
-        // Rutina activa del usuario con todos sus ejercicios
-        $today = $user->routines()
+        // Rutina activa con días y ejercicios ordenados
+        $routine = $user->routines()
             ->where('is_active', true)
-            ->with(['days.exercises.exercise'])
+            ->with(['days' => fn ($q) => $q->orderBy('day_number'), 'days.exercises.exercise'])
             ->latest()
             ->first();
 
-        // Registro de entrenamiento de hoy (si existe)
+        // Detectar el día de hoy (ISO 1=lunes … 7=domingo)
+        $todayIso  = (int) now()->isoFormat('E');
+        $todayDay  = $routine?->days->firstWhere('day_number', $todayIso);
+        $isRestDay = $routine && ! $todayDay;
+
+        // Log de hoy (iniciado o completado)
         $todayLog = $user->workoutLogs()
             ->whereDate('date', today())
+            ->latest()
             ->first();
 
         // Últimas 5 entradas de progreso para mostrar tendencia
@@ -43,7 +49,9 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard', [
             'streak'         => $streak,
             'weekDays'       => $weekDays,
-            'routine'        => $today,
+            'routine'        => $routine,
+            'todayDay'       => $todayDay,
+            'isRestDay'      => $isRestDay,
             'todayLog'       => $todayLog,
             'recentProgress' => $recentProgress,
         ]);

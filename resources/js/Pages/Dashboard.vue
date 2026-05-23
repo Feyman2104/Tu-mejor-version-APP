@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
-import type { User, Routine, WorkoutLog, ProgressEntry } from '@/types'
+import type { User, Routine, RoutineDay, WorkoutLog, ProgressEntry } from '@/types'
 
 defineOptions({ layout: AppLayout })
 
@@ -10,10 +10,12 @@ const page = usePage()
 const user = computed(() => page.props.auth.user as User)
 
 const props = defineProps<{
-  streak: number
-  weekDays: boolean[]
-  routine: Routine | null
-  todayLog: WorkoutLog | null
+  streak:         number
+  weekDays:       boolean[]
+  routine:        Routine | null
+  todayDay:       RoutineDay | null
+  isRestDay:      boolean
+  todayLog:       WorkoutLog | null
   recentProgress: ProgressEntry[]
 }>()
 
@@ -28,10 +30,18 @@ const greeting = computed(() => {
 
 const firstName = computed(() => user.value?.name?.split(' ')[0] ?? '')
 
-const weekStartDay = computed(() => {
-  const today = new Date().getDay()
-  return today
+const focusColor = (focus: string) => ({
+  push: '#F59E0B', pull: '#3B82F6', legs: '#1DF412',
+  full_body: '#8B5CF6', cardio: '#EF4444',
+} as Record<string, string>)[focus] ?? '#9CA3AF'
+
+const workoutButtonLabel = computed(() => {
+  if (!props.todayLog) return 'Empezar entrenamiento'
+  if (props.todayLog.completed) return '¡Ya entrenaste hoy! 🎉'
+  return 'Continuar entrenamiento'
 })
+
+const workoutButtonDisabled = computed(() => props.todayLog?.completed === true)
 </script>
 
 <template>
@@ -94,52 +104,108 @@ const weekStartDay = computed(() => {
         <div>
           <div class="flex justify-between items-center" style="margin-bottom:12px;">
             <h3 class="font-display font-bold" style="font-size:17px;letter-spacing:-0.01em;">Entrenamiento de hoy</h3>
-            <Link :href="route('workout.log')" style="background:transparent;border:none;color:#1DF412;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;text-decoration:none;">
-              Ver historial
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            <Link :href="route('workout.log')" style="color:#1DF412;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:4px;text-decoration:none;">
+              Historial <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </Link>
           </div>
 
-          <div v-if="routine" class="relative overflow-hidden" style="border-radius:22px;aspect-ratio:4/3;">
-            <img src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=900&h=600&fit=crop&q=85" alt="" class="w-full h-full object-cover" />
-            <div class="absolute inset-0" style="background:linear-gradient(180deg,rgba(0,0,0,0.1) 0%,rgba(0,0,0,0.8) 100%);"></div>
-            <div class="absolute" style="top:16px;left:16px;background:rgba(0,0,0,0.5);backdrop-filter:blur(12px);border:1px solid rgba(29,244,18,0.3);border-radius:8px;padding:5px 10px;font-size:10px;font-weight:700;color:#1DF412;text-transform:uppercase;letter-spacing:0.08em;">
-              Tu rutina · hoy
-            </div>
-            <div class="absolute" style="bottom:20px;left:20px;right:20px;">
-              <h2 class="font-display font-bold" style="font-size:28px;letter-spacing:-0.02em;margin-bottom:6px;line-height:1.15;text-shadow:0 2px 8px rgba(0,0,0,0.4);">
-                {{ routine.name }}
-              </h2>
-              <div class="flex items-center gap-3" style="font-size:13px;color:rgba(255,255,255,0.85);margin-bottom:16px;">
-                <span class="flex items-center gap-1">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  ~45 min
-                </span>
-                <span>·</span>
-                <span>{{ routine.days?.[0]?.exercises?.length ?? 0 }} ejercicios</span>
-              </div>
-              <Link :href="route('workout.today')"
-                class="w-full flex items-center justify-center gap-2 font-bold"
-                style="padding:14px;background:#1DF412;color:#000;border:none;border-radius:14px;font-size:15px;cursor:pointer;box-shadow:0 4px 20px rgba(29,244,18,0.3);letter-spacing:-0.01em;text-decoration:none;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                Empezar entrenamiento
-              </Link>
-            </div>
-          </div>
-
-          <!-- No routine yet -->
-          <div v-else class="flex flex-col items-center justify-center text-center" style="background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:22px;padding:40px 24px;">
-            <div class="flex items-center justify-center" style="width:64px;height:64px;border-radius:16px;background:rgba(29,244,18,0.08);border:1px solid rgba(29,244,18,0.2);margin-bottom:16px;color:#1DF412;">
+          <!-- Sin rutina -->
+          <div v-if="!routine" class="flex flex-col items-center justify-center text-center" style="background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:22px;padding:40px 24px;">
+            <div style="width:64px;height:64px;border-radius:16px;background:rgba(29,244,18,0.08);border:1px solid rgba(29,244,18,0.2);display:flex;align-items:center;justify-content:center;margin-bottom:16px;color:#1DF412;">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/></svg>
             </div>
             <h3 class="font-display font-bold" style="font-size:20px;margin-bottom:8px;">Aún sin rutina</h3>
             <p style="font-size:14px;color:#9CA3AF;line-height:1.5;margin-bottom:20px;">Genera tu plan personalizado con IA en segundos.</p>
-            <Link :href="route('chat.index')"
-              class="inline-flex items-center gap-2 font-bold"
-              style="background:#1DF412;color:#000;border:none;border-radius:12px;padding:12px 20px;font-size:14px;cursor:pointer;text-decoration:none;">
+            <Link :href="route('chat.index')" class="inline-flex items-center gap-2 font-bold" style="background:#1DF412;color:#000;border-radius:12px;padding:12px 20px;font-size:14px;text-decoration:none;">
               Generar rutina con IA
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </Link>
+          </div>
+
+          <!-- Día de descanso -->
+          <div v-else-if="isRestDay" style="background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:22px;padding:24px;">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+              <div style="width:44px;height:44px;border-radius:12px;background:#242424;display:flex;align-items:center;justify-content:center;font-size:22px;">😴</div>
+              <div>
+                <div style="font-size:11px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:2px;">Hoy toca</div>
+                <div class="font-display font-bold" style="font-size:20px;letter-spacing:-0.01em;">Día de descanso</div>
+              </div>
+            </div>
+            <p style="font-size:13px;color:#9CA3AF;line-height:1.5;margin-bottom:16px;">El descanso es parte del entrenamiento. Hoy tu cuerpo se recupera y crece. 💪</p>
+            <div style="font-size:11px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">O entrena otro día:</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
+              <Link v-for="day in routine!.days" :key="day.id"
+                :href="route('workout.today')"
+                style="font-size:12px;font-weight:600;border-radius:8px;padding:6px 12px;text-decoration:none;display:flex;align-items:center;gap:5px;background:#111;border:1px solid rgba(255,255,255,0.08);color:#9CA3AF;">
+                <span :style="{ color: focusColor(day.focus) }">●</span>
+                {{ day.name }}
+              </Link>
+            </div>
+            <Link :href="route('workout.today')" class="w-full flex items-center justify-center gap-2 font-bold" style="background:#161616;color:#1DF412;border:1.5px solid rgba(29,244,18,0.35);border-radius:14px;padding:14px;font-size:15px;text-decoration:none;">
+              Ver todos los ejercicios
+            </Link>
+          </div>
+
+          <!-- Día con rutina asignada -->
+          <div v-else style="background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:22px;overflow:hidden;">
+
+            <!-- Header del día -->
+            <div style="padding:16px 18px 14px;border-bottom:1px solid rgba(255,255,255,0.05);">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span :style="{ color: focusColor(todayDay!.focus) }">●</span>
+                  <span style="font-size:11px;color:#9CA3AF;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">Hoy</span>
+                </div>
+                <span style="font-size:11px;color:#4B5563;">{{ todayDay!.exercises.length }} ejercicios</span>
+              </div>
+              <div class="font-display font-bold" style="font-size:20px;letter-spacing:-0.01em;">{{ todayDay!.name }}</div>
+            </div>
+
+            <!-- Lista de ejercicios (preview) -->
+            <div style="padding:12px 18px 0;">
+              <div v-for="(re, i) in todayDay!.exercises.slice(0, 4)" :key="re.id"
+                style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+                <!-- Thumbnail -->
+                <div style="width:40px;height:40px;border-radius:10px;overflow:hidden;flex-shrink:0;background:#111;">
+                  <img v-if="re.exercise?.gif_url || re.exercise?.thumbnail"
+                    :src="(re.exercise.gif_url || re.exercise.thumbnail)!"
+                    :alt="re.exercise.name"
+                    style="width:100%;height:100%;object-fit:cover;"
+                    loading="lazy"
+                  />
+                  <div v-else style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:16px;">💪</div>
+                </div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ re.exercise?.name }}</div>
+                  <div style="font-size:11px;color:#4B5563;">{{ re.sets }} × {{ re.reps }}</div>
+                </div>
+                <!-- Check si ya está completado hoy -->
+                <div v-if="todayLog?.completed" style="width:20px;height:20px;border-radius:50%;background:#1DF412;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+              </div>
+              <!-- +N más -->
+              <div v-if="todayDay!.exercises.length > 4" style="padding:8px 0 2px;font-size:12px;color:#374151;text-align:center;">
+                +{{ todayDay!.exercises.length - 4 }} ejercicios más
+              </div>
+            </div>
+
+            <!-- Botón de acción -->
+            <div style="padding:14px 18px 18px;">
+              <!-- Ya completado -->
+              <div v-if="todayLog?.completed"
+                style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;background:rgba(29,244,18,0.08);border:1px solid rgba(29,244,18,0.2);border-radius:14px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1DF412" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span style="font-size:15px;font-weight:700;color:#1DF412;">¡Ya entrenaste hoy!</span>
+              </div>
+              <!-- Continuar o empezar -->
+              <Link v-else :href="route('workout.today')"
+                class="w-full flex items-center justify-center gap-2 font-bold"
+                style="padding:14px;background:#1DF412;color:#000;border-radius:14px;font-size:15px;text-decoration:none;box-shadow:0 4px 20px rgba(29,244,18,0.25);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                {{ todayLog ? 'Continuar entrenamiento' : 'Empezar entrenamiento' }}
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -218,29 +284,83 @@ const weekStartDay = computed(() => {
                 </Link>
               </div>
 
-              <div v-if="routine" class="relative overflow-hidden" style="border-radius:22px;aspect-ratio:16/10;">
-                <img src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=900&h=600&fit=crop&q=85" alt="" class="w-full h-full object-cover" />
-                <div class="absolute inset-0" style="background:linear-gradient(180deg,rgba(0,0,0,0.1) 0%,rgba(0,0,0,0.75) 100%);"></div>
-                <div class="absolute" style="top:16px;left:16px;background:rgba(0,0,0,0.5);backdrop-filter:blur(12px);border:1px solid rgba(29,244,18,0.3);border-radius:8px;padding:5px 10px;font-size:10px;font-weight:700;color:#1DF412;text-transform:uppercase;letter-spacing:0.08em;">
-                  Tu rutina · hoy
-                </div>
-                <div class="absolute flex items-end justify-between" style="bottom:24px;left:24px;right:24px;">
+              <!-- Día de descanso -->
+              <div v-if="isRestDay" style="background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:22px;padding:32px;">
+                <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
+                  <div style="width:56px;height:56px;border-radius:14px;background:#242424;display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;">😴</div>
                   <div>
-                    <h2 class="font-display font-bold" style="font-size:32px;letter-spacing:-0.02em;margin-bottom:6px;line-height:1.15;text-shadow:0 2px 8px rgba(0,0,0,0.4);">{{ routine.name }}</h2>
-                    <div class="flex items-center gap-3" style="font-size:14px;color:rgba(255,255,255,0.85);">
-                      <span class="flex items-center gap-1">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        ~45 min
-                      </span>
-                      <span>·</span>
-                      <span>{{ routine.days?.[0]?.exercises?.length ?? 0 }} ejercicios</span>
+                    <div style="font-size:11px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">Hoy toca</div>
+                    <div class="font-display font-bold" style="font-size:26px;letter-spacing:-0.02em;">Día de descanso</div>
+                  </div>
+                </div>
+                <p style="font-size:14px;color:#9CA3AF;line-height:1.6;margin-bottom:20px;">El descanso es parte del entrenamiento. Hoy tu cuerpo se recupera y crece. 💪</p>
+                <div style="font-size:11px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">O entrena otro día:</div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
+                  <Link v-for="day in routine!.days" :key="day.id"
+                    :href="route('workout.today')"
+                    style="font-size:13px;font-weight:600;border-radius:10px;padding:8px 14px;text-decoration:none;display:flex;align-items:center;gap:6px;background:#111;border:1px solid rgba(255,255,255,0.08);color:#9CA3AF;">
+                    <span :style="{ color: focusColor(day.focus) }">●</span>
+                    {{ day.name }}
+                  </Link>
+                </div>
+                <Link :href="route('workout.today')" class="inline-flex items-center gap-2 font-bold"
+                  style="background:#161616;color:#1DF412;border:1.5px solid rgba(29,244,18,0.35);border-radius:14px;padding:14px 24px;font-size:15px;text-decoration:none;">
+                  Ver todos los ejercicios
+                </Link>
+              </div>
+
+              <!-- Día con rutina asignada -->
+              <div v-else-if="todayDay" style="background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:22px;overflow:hidden;">
+                <!-- Header del día -->
+                <div style="padding:20px 24px 16px;border-bottom:1px solid rgba(255,255,255,0.05);">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                      <span :style="{ color: focusColor(todayDay.focus) }">●</span>
+                      <span style="font-size:11px;color:#9CA3AF;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">Hoy</span>
+                    </div>
+                    <span style="font-size:12px;color:#4B5563;">{{ todayDay.exercises.length }} ejercicios</span>
+                  </div>
+                  <div class="font-display font-bold" style="font-size:24px;letter-spacing:-0.01em;">{{ todayDay.name }}</div>
+                </div>
+
+                <!-- Lista de ejercicios (preview) -->
+                <div style="padding:16px 24px 0;">
+                  <div v-for="(re, i) in todayDay.exercises.slice(0, 5)" :key="re.id"
+                    style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+                    <div style="width:44px;height:44px;border-radius:10px;overflow:hidden;flex-shrink:0;background:#111;">
+                      <img v-if="re.exercise?.gif_url || re.exercise?.thumbnail"
+                        :src="(re.exercise.gif_url || re.exercise.thumbnail)!"
+                        :alt="re.exercise?.name"
+                        style="width:100%;height:100%;object-fit:cover;"
+                        loading="lazy"
+                      />
+                      <div v-else style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:18px;">💪</div>
+                    </div>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:14px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ re.exercise?.name }}</div>
+                      <div style="font-size:12px;color:#4B5563;">{{ re.sets }} × {{ re.reps }}</div>
+                    </div>
+                    <div v-if="todayLog?.completed" style="width:22px;height:22px;border-radius:50%;background:#1DF412;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                     </div>
                   </div>
-                  <Link :href="route('workout.today')"
-                    class="flex items-center gap-2 font-bold flex-shrink-0"
-                    style="padding:14px 24px;background:#1DF412;color:#000;border:none;border-radius:14px;font-size:15px;cursor:pointer;box-shadow:0 4px 20px rgba(29,244,18,0.3);letter-spacing:-0.01em;text-decoration:none;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                    Empezar
+                  <div v-if="todayDay.exercises.length > 5" style="padding:10px 0 2px;font-size:12px;color:#374151;text-align:center;">
+                    +{{ todayDay.exercises.length - 5 }} ejercicios más
+                  </div>
+                </div>
+
+                <!-- Botón de acción -->
+                <div style="padding:16px 24px 24px;">
+                  <div v-if="todayLog?.completed"
+                    style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:16px;background:rgba(29,244,18,0.08);border:1px solid rgba(29,244,18,0.2);border-radius:14px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1DF412" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    <span style="font-size:15px;font-weight:700;color:#1DF412;">¡Ya entrenaste hoy!</span>
+                  </div>
+                  <Link v-else :href="route('workout.today')"
+                    class="w-full flex items-center justify-center gap-2 font-bold"
+                    style="padding:16px 24px;background:#1DF412;color:#000;border-radius:14px;font-size:15px;text-decoration:none;box-shadow:0 4px 20px rgba(29,244,18,0.25);">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    {{ todayLog ? 'Continuar entrenamiento' : 'Empezar entrenamiento' }}
                   </Link>
                 </div>
               </div>
