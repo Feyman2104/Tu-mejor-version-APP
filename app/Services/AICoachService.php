@@ -19,7 +19,7 @@ class AICoachService
         $this->anthropicKey   = config('services.anthropic.key', '');
         $this->anthropicModel = config('services.anthropic.model', 'claude-haiku-4-5-20251001');
         $this->geminiKey      = config('services.gemini.key', '');
-        $this->geminiModel    = config('services.gemini.model', 'gemini-1.5-flash');
+        $this->geminiModel    = config('services.gemini.model', 'gemini-2.5-flash');
     }
 
     public function streamChat(User $user, array $history): Generator
@@ -37,8 +37,14 @@ class AICoachService
         }
 
         if ($this->geminiKey) {
-            yield from $this->streamGemini($systemPrompt, $history);
-            return;
+            try {
+                yield from $this->streamGemini($systemPrompt, $history);
+                return;
+            } catch (\Throwable $e) {
+                Log::error('Gemini falló', ['error' => $e->getMessage()]);
+                yield 'Lo siento, hubo un problema al conectar con el asistente. Intenta de nuevo en un momento.';
+                return;
+            }
         }
 
         yield 'Lo siento, no hay ningún proveedor de IA configurado en este momento. Por favor, añade tu API key de Anthropic o Google Gemini en el archivo .env.';
