@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
 import type { User } from '@/types'
+import CoachModal from '@/Components/Coach/CoachModal.vue'
 
 const page = usePage()
 const user = computed(() => page.props.auth.user as User | null)
@@ -45,6 +46,15 @@ function isActive(urlPrefix: string): boolean {
   const url = page.url
   return url === urlPrefix || url.startsWith(urlPrefix + '/')
 }
+
+// FAB — Coach modal
+const coachOpen = ref(false)
+
+// Ocultar FAB en las páginas de Chat y Postura (ya tienen esa funcionalidad de forma nativa)
+const hideFab = computed(() => {
+  const url = page.url
+  return url.startsWith('/chat') || url.startsWith('/posture')
+})
 </script>
 
 <template>
@@ -147,5 +157,39 @@ function isActive(urlPrefix: string): boolean {
       </Link>
     </nav>
 
+    <!-- ── Coach FAB ── -->
+    <Transition name="fab">
+      <button v-if="!hideFab"
+        @click="coachOpen = true"
+        style="position:fixed;bottom:80px;right:20px;z-index:50;width:56px;height:56px;border-radius:50%;background:#1DF412;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 24px rgba(29,244,18,0.45);transition:transform 0.15s,box-shadow 0.15s;"
+        class="md:bottom-8 md:right-8"
+        onmouseover="this.style.transform='scale(1.08)';this.style.boxShadow='0 6px 32px rgba(29,244,18,0.6)'"
+        onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 4px 24px rgba(29,244,18,0.45)'"
+        aria-label="Abrir Coach IA"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+        </svg>
+      </button>
+    </Transition>
+
+    <!-- ── Coach Modal ── -->
+    <CoachModal :open="coachOpen" @close="coachOpen = false" />
+
   </div>
 </template>
+
+<style scoped>
+/* FAB entry/exit */
+.fab-enter-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.fab-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
+.fab-enter-from, .fab-leave-to { opacity: 0; transform: scale(0.7); }
+
+/* Desktop: FAB queda a la derecha del sidebar (ml-64) */
+@media (min-width: 768px) {
+  button[aria-label="Abrir Coach IA"] {
+    bottom: 32px !important;
+    right: 32px !important;
+  }
+}
+</style>
