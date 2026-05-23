@@ -8,15 +8,16 @@
 
   <title inertia>{{ config('app.name', 'Tu Mejor Versión') }}</title>
 
-  <!-- MediaPipe Pose — cargado desde CDN, NO instalar por npm (bundle WASM demasiado grande) -->
-  @if(request()->is('posture*') || request()->routeIs('posture.*'))
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
-  @endif
+  <!-- MediaPipe Pose — cargado desde CDN en TODAS las rutas autenticadas
+       porque CoachModal (FAB) puede abrirse desde cualquier página.
+       Sin crossorigin para evitar bloqueo CORS silencioso en redes locales.
+       Versiones fijadas a la última API estable que exporta window.Pose y window.Camera. -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js"></script>
 
-  <!-- PWA -->
-  <link rel="manifest" href="/manifest.webmanifest">
+  <!-- PWA — manifest apunta al build generado por vite-plugin-pwa -->
+  <link rel="manifest" href="/build/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
 
   @routes
