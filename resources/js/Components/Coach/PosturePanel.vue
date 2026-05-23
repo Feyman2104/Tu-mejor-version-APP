@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onBeforeUnmount } from 'vue'
+import { ref, computed, onBeforeUnmount } from 'vue'
 import { router } from '@inertiajs/vue3'
 import { useMediaPipe, type PoseResults } from '@/Composables/useMediaPipe'
 import { usePostureFeedback } from '@/Composables/usePostureFeedback'
@@ -46,6 +46,11 @@ async function stopAnalysis() {
   await stop()
   started.value = false
 }
+
+// Detecta si getUserMedia está disponible (solo en HTTPS o localhost)
+const hasGetUserMedia = computed(() =>
+  typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia
+)
 
 // Exponer para que CoachModal detenga la cámara al cerrar
 defineExpose({ stopAnalysis })
@@ -120,13 +125,19 @@ function saveSession() {
       </div>
     </div>
 
-    <!-- Error con diagnóstico -->
+    <!-- Error con diagnóstico diferenciado -->
     <div v-if="errorMessage" style="margin-bottom:12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:12px;padding:12px 14px;">
       <p style="font-size:12px;color:#EF4444;margin-bottom:8px;">{{ errorMessage }}</p>
-      <div v-if="!librariesLoaded()" style="font-size:11px;color:#6B7280;margin-bottom:8px;line-height:1.4;">
-        💡 Verifica tu conexión a internet — el analizador necesita cargar MediaPipe desde CDN.
+      <!-- HTTPS requerido -->
+      <div v-if="!hasGetUserMedia" style="font-size:11px;color:#6B7280;margin-bottom:8px;line-height:1.5;">
+        🔒 El analizador solo funciona en conexiones seguras.<br>
+        Abre <strong style="color:#9CA3AF;">http://localhost:8000</strong> en este mismo dispositivo.
       </div>
-      <button @click="startAnalysis"
+      <!-- CDN no disponible -->
+      <div v-else-if="!librariesLoaded()" style="font-size:11px;color:#6B7280;margin-bottom:8px;line-height:1.4;">
+        💡 Verifica tu conexión a internet — MediaPipe se carga desde CDN.
+      </div>
+      <button v-if="hasGetUserMedia" @click="startAnalysis"
         style="font-size:12px;font-weight:700;background:rgba(239,68,68,0.15);color:#EF4444;border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:6px 12px;cursor:pointer;">
         Reintentar
       </button>

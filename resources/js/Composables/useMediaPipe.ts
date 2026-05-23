@@ -55,6 +55,16 @@ export function useMediaPipe() {
     errorMessage.value = null
     onResultsCallback = onResults
 
+    // Pre-check: getUserMedia solo existe en HTTPS o localhost.
+    // Interceptamos ANTES de instanciar Camera para evitar el window.alert() interno de MediaPipe.
+    if (!navigator.mediaDevices?.getUserMedia) {
+      errorMessage.value =
+        'El analizador requiere una conexión segura (HTTPS). ' +
+        'Accede desde http://localhost:8000 en este dispositivo, ' +
+        'o configura HTTPS para usarlo desde otros equipos de la red.'
+      return
+    }
+
     const loaded = await waitForLibraries()
     if (!loaded) {
       errorMessage.value = 'No se pudieron cargar las librerías de detección. Recarga la página.'
