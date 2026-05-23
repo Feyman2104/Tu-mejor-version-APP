@@ -278,9 +278,10 @@ async function completeWorkout() {
   completing.value = true
   stopRestTimer()
   if (elapsedInterval) clearInterval(elapsedInterval)
+  const durationMinutes = Math.max(1, Math.round(elapsedSeconds.value / 60))
   router.patch(
     route('workout.logs.complete', { workoutLog: activeLog.value.id }),
-    {},
+    { duration_minutes: durationMinutes },
     { onFinish: () => { completing.value = false } }
   )
 }

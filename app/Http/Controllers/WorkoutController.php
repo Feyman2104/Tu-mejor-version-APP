@@ -23,13 +23,10 @@ class WorkoutController extends Controller
             ->latest()
             ->first();
 
-        // Detectar día ISO de la semana (1=lunes … 7=domingo)
-        // isoFormat('E') devuelve 1-7 compatible con Carbon <2.x y >2.x
         $todayIso  = (int) now()->isoFormat('E');
         $todayDay  = $routine?->days->firstWhere('day_number', $todayIso);
         $isRestDay = $routine && ! $todayDay;
 
-        // Log activo de hoy (no completado)
         $todayLog = $user->workoutLogs()
             ->with('sets')
             ->whereDate('date', today())
@@ -37,7 +34,6 @@ class WorkoutController extends Controller
             ->latest()
             ->first();
 
-        // Última serie completada por ejercicio → mostrar "anterior" al usuario
         $prevSets = [];
         if ($routine) {
             $exerciseIds = $routine->days
@@ -69,7 +65,7 @@ class WorkoutController extends Controller
             'todayDay'  => $todayDay,
             'isRestDay' => $isRestDay,
             'todayLog'  => $todayLog,
-            'prevSets'  => $prevSets,  // [exercise_id => {weight_kg, reps_done}]
+            'prevSets'  => $prevSets,
         ]);
     }
 
@@ -77,12 +73,55 @@ class WorkoutController extends Controller
     {
         $logs = $request->user()
             ->workoutLogs()
-            ->with(['sets', 'routineDay'])
+            ->with(['sets.routineExercise.exercise', 'routineDay'])
+            ->where('completed', true)
             ->orderByDesc('date')
-            ->paginate(10);
+            ->paginate(15);
 
         return Inertia::render('Workout/Log', [
             'logs' => $logs,
+        ]);
+    }
+
+    public function show(Request $request, WorkoutLog $workoutLog): Response
+    {
+        abort_if($workoutLog->user_id !== $request->user()->id, 403);
+
+        $workoutLog->load(['sets.routineExercise.exercise', 'routineDay']);
+
+        // Detectar PRs: peso máximo de esta sesión vs. histórico anterior
+        $prs = [];
+        $byExercise = $workoutLog->sets
+            ->filter(fn ($s) => $s->routineExercise?->exercise)
+            ->groupBy(fn ($s) => $s->routineExercise->exercise->id);
+
+        foreach ($byExercise as $exerciseId => $sets) {
+            $exercise   = $sets->first()->routineExercise->exercise;
+            $sessionMax = $sets->max('weight_kg');
+            if (! $sessionMax) continue;
+
+            $prevBest = WorkoutSet::whereHas('workoutLog', fn ($q) => $q
+                    ->where('user_id', $request->user()->id)
+                    ->where('completed', true)
+                    ->where('id', '!=', $workoutLog->id)
+                )
+                ->whereHas('routineExercise', fn ($q) => $q->where('exercise_id', $exerciseId))
+                ->max('weight_kg');
+
+            if ($sessionMax > ($prevBest ?? 0)) {
+                $prs[] = [
+                    'exercise_name' => $exercise->name,
+                    'muscle_group'  => $exercise->muscle_group,
+                    'weight_kg'     => (float) $sessionMax,
+                    'prev_kg'       => $prevBest ? (float) $prevBest : null,
+                ];
+            }
+        }
+
+        return Inertia::render('Workout/Show', [
+            'log'          => $workoutLog,
+            'prs'          => $prs,
+            'isFresh'      => session('fresh_completion', false),
         ]);
     }
 
@@ -129,9 +168,18 @@ class WorkoutController extends Controller
     {
         abort_if($workoutLog->user_id !== $request->user()->id, 403);
 
-        $workoutLog->update(['completed' => true]);
+        $validated = $request->validate([
+            'duration_minutes' => ['nullable', 'integer', 'min:0', 'max:600'],
+        ]);
 
-        return back()->with('success', '¡Entrenamiento completado! Excelente trabajo 💪');
+        $workoutLog->update([
+            'completed'        => true,
+            'duration_minutes' => $validated['duration_minutes'] ?? null,
+        ]);
+
+        return redirect()
+            ->route('workout.logs.show', $workoutLog)
+            ->with('fresh_completion', true);
     }
 
     public function generateRoutine(Request $request): RedirectResponse

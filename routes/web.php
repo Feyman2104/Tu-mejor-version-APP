@@ -50,6 +50,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/workout/logs', [WorkoutController::class, 'storeLog'])->name('workout.logs.store');
     Route::post('/workout/sets', [WorkoutController::class, 'storeSet'])->name('workout.sets.store');
     Route::patch('/workout/logs/{workoutLog}/complete', [WorkoutController::class, 'complete'])->name('workout.logs.complete');
+    Route::get('/workout/logs/{workoutLog}', [WorkoutController::class, 'show'])->name('workout.logs.show');
 
     // Rutinas
     Route::post('/routines/generate', [WorkoutController::class, 'generateRoutine'])->name('routines.generate');
