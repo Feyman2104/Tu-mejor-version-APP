@@ -114,6 +114,18 @@ function submit() {
             <p v-if="form.errors.password" style="font-size:12px;color:#EF4444;margin-top:6px;">{{ form.errors.password }}</p>
           </div>
 
+          <!-- Confirm Password -->
+          <div>
+            <div style="font-size:11px;color:#9CA3AF;margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Confirmar contraseña</div>
+            <div class="flex items-center" style="background:#161616;border:1.5px solid rgba(255,255,255,0.06);border-radius:14px;padding:4px;" :style="form.errors.password_confirmation ? 'border-color:#EF4444;' : ''">
+              <div style="padding-left:14px;color:#9CA3AF;display:flex;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </div>
+              <input v-model="form.password_confirmation" :type="showPassword ? 'text' : 'password'" placeholder="Repite tu contraseña" autocomplete="new-password" class="flex-1 bg-transparent border-none outline-none" style="padding:14px 16px;color:#fff;font-size:15px;font-weight:500;letter-spacing:-0.01em;min-width:0;" />
+            </div>
+            <p v-if="form.errors.password_confirmation" style="font-size:12px;color:#EF4444;margin-top:6px;">{{ form.errors.password_confirmation }}</p>
+          </div>
+
           <!-- Terms -->
           <p style="font-size:12px;color:#9CA3AF;line-height:1.5;margin-top:4px;">
             Al crear cuenta aceptas nuestros
@@ -251,6 +263,18 @@ function submit() {
                   <span style="font-size:11px;font-weight:600;" :style="{ color: passwordStrength.color }">{{ passwordStrength.label }}</span>
                 </div>
                 <p v-if="form.errors.password" style="font-size:12px;color:#EF4444;margin-top:6px;">{{ form.errors.password }}</p>
+              </div>
+
+              <!-- Confirm Password -->
+              <div>
+                <div style="font-size:11px;color:#9CA3AF;margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Confirmar contraseña</div>
+                <div class="flex items-center" style="background:#161616;border:1.5px solid rgba(255,255,255,0.06);border-radius:14px;padding:4px;" :style="form.errors.password_confirmation ? 'border-color:#EF4444;' : ''">
+                  <div style="padding-left:14px;color:#9CA3AF;display:flex;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  </div>
+                  <input v-model="form.password_confirmation" :type="showPassword ? 'text' : 'password'" placeholder="Repite tu contraseña" autocomplete="new-password" class="flex-1 bg-transparent border-none outline-none" style="padding:14px 16px;color:#fff;font-size:15px;font-weight:500;letter-spacing:-0.01em;min-width:0;" />
+                </div>
+                <p v-if="form.errors.password_confirmation" style="font-size:12px;color:#EF4444;margin-top:6px;">{{ form.errors.password_confirmation }}</p>
               </div>
 
               <!-- Terms -->
