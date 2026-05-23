@@ -13,7 +13,7 @@ class Exercise extends Model
     protected $fillable = [
         'name', 'slug', 'muscle_group', 'movement_pattern',
         'level', 'environment', 'goal_tags', 'description',
-        'instructions', 'common_errors', 'thumbnail', 'video_url',
+        'instructions', 'common_errors', 'thumbnail', 'gif_url', 'video_url',
         'met_value', 'knowledge_key',
     ];
 

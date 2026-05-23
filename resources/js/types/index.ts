@@ -30,6 +30,7 @@ export interface Exercise {
   instructions: string[]
   common_errors: string[]
   thumbnail: string | null
+  gif_url: string | null
   video_url: string | null
   met_value: number
   knowledge_key: string | null

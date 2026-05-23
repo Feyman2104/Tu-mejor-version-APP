@@ -57,6 +57,41 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api/, /^\/sanctum/],
         runtimeCaching: [
           {
+            // GIFs de ExerciseDB — CacheFirst para uso offline
+            urlPattern: /^https:\/\/.*exercisedb.*\.gif$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'exercise-gifs',
+              expiration: {
+                maxEntries: 200,
+                maxAgeSeconds: 30 * 24 * 60 * 60, // 30 días
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // GIFs externos en general (cualquier dominio con .gif)
+            urlPattern: /\.gif$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'exercise-gifs-ext',
+              expiration: {
+                maxEntries: 200,
+                maxAgeSeconds: 30 * 24 * 60 * 60,
+              },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // API de ejercicios — StaleWhileRevalidate para datos frescos offline
+            urlPattern: /^https?:\/\/.*\/api\/exercises/,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'exercises-api',
+              expiration: { maxEntries: 10, maxAgeSeconds: 7 * 24 * 60 * 60 },
+            },
+          },
+          {
             // Caché de respuestas del servidor (Inertia pages)
             urlPattern: /^https?:\/\/.*\/(?!api)/,
             handler: 'NetworkFirst',
