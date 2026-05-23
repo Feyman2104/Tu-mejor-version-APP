@@ -26,6 +26,11 @@ function scrollToBottom() {
   })
 }
 
+function xsrfToken(): string {
+  const match = document.cookie.split(';').find(c => c.trim().startsWith('XSRF-TOKEN='))
+  return match ? decodeURIComponent(match.split('=').slice(1).join('=')) : ''
+}
+
 async function send() {
   const text = input.value.trim()
   if (!text || loading.value) return
@@ -45,11 +50,13 @@ async function send() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? '',
+        'X-XSRF-TOKEN': xsrfToken(),
         'Accept': 'text/event-stream',
       },
       body: JSON.stringify({ message: text }),
     })
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
 
     const reader = res.body?.getReader()
     const decoder = new TextDecoder()
