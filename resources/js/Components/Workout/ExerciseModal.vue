@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, watch, onMounted, onUnmounted } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import type { Exercise } from '@/types'
 
@@ -19,13 +19,20 @@ const userGoal = computed(() => page.props.auth?.user?.goal ?? null)
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') emit('close')
 }
+
+// Bloquear scroll SOLO cuando el modal está abierto
+watch(() => props.exercise, (ex) => {
+  document.body.style.overflow = ex ? 'hidden' : ''
+})
+
 onMounted(() => {
   document.addEventListener('keydown', onKeydown)
-  document.body.style.overflow = 'hidden'
+  // Por si el modal ya tiene ejercicio al montar
+  if (props.exercise) document.body.style.overflow = 'hidden'
 })
 onUnmounted(() => {
   document.removeEventListener('keydown', onKeydown)
-  document.body.style.overflow = ''
+  document.body.style.overflow = '' // Siempre restaurar al desmontar
 })
 
 // ─── Recomendación según objetivo ─────────────────────────────────────────────
