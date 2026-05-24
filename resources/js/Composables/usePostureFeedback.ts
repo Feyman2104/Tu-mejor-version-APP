@@ -1,5 +1,5 @@
 // Evalúa los ángulos calculados contra los umbrales científicos de exerciseKnowledge.ts
-// y devuelve feedback en tiempo real + puntuación.
+// y devuelve feedback en tiempo real + puntuación + historial de sesión.
 
 import { ref } from 'vue'
 import { EXERCISE_KNOWLEDGE, type ExerciseThreshold } from '@/data/exerciseKnowledge'
@@ -9,6 +9,22 @@ export interface FeedbackItem {
   joint: string
   message: string
   severity: 'warning' | 'error' | 'good'
+}
+
+export interface ErrorSummaryItem {
+  message: string
+  joint: string
+  severity: 'warning' | 'error'
+  count: number
+  frequency: number // 0-100: % de frames en que ocurrió
+}
+
+export interface SessionSummary {
+  finalScore: number
+  reps: number
+  totalFrames: number
+  goodFrames: number
+  topErrors: ErrorSummaryItem[]
 }
 
 export function usePostureFeedback() {
@@ -22,6 +38,9 @@ export function usePostureFeedback() {
   let phase: 'up' | 'down' = 'up'
   const goodFrames = ref(0)
   const totalFrames = ref(0)
+
+  // Acumula cuántos frames ocurrió cada error/warning durante la sesión
+  const feedbackHistory = new Map<string, { count: number; severity: 'warning' | 'error'; joint: string }>()
 
   function getAngleForJoint(joint: string, lm: Landmark[], side: 'left' | 'right'): number | null {
     switch (joint) {
@@ -65,7 +84,21 @@ export function usePostureFeedback() {
       const result = evaluateThreshold(threshold, angle)
       if (result) {
         feedback.push(result)
-        if (result.severity === 'error') frameHasError = true
+
+        // Acumular en historial solo errores/warnings (no los buenos)
+        if (result.severity !== 'good') {
+          const entry = feedbackHistory.get(result.message)
+          if (entry) {
+            entry.count++
+          } else {
+            feedbackHistory.set(result.message, {
+              count: 1,
+              severity: result.severity,
+              joint: result.joint,
+            })
+          }
+          if (result.severity === 'error') frameHasError = true
+        }
       }
     }
 
@@ -88,6 +121,33 @@ export function usePostureFeedback() {
     currentFeedback.value = feedback
   }
 
+  /**
+   * Devuelve el resumen de la sesión completa.
+   * Llamar ANTES de reset() para capturar los datos.
+   */
+  function getSummary(): SessionSummary {
+    const total = totalFrames.value
+
+    const topErrors: ErrorSummaryItem[] = [...feedbackHistory.entries()]
+      .map(([message, data]) => ({
+        message,
+        joint: data.joint,
+        severity: data.severity,
+        count: data.count,
+        frequency: total > 0 ? Math.round((data.count / total) * 100) : 0,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4)
+
+    return {
+      finalScore: score.value,
+      reps: repCount.value,
+      totalFrames: total,
+      goodFrames: goodFrames.value,
+      topErrors,
+    }
+  }
+
   function reset() {
     currentFeedback.value = []
     score.value = 100
@@ -95,6 +155,7 @@ export function usePostureFeedback() {
     goodFrames.value = 0
     totalFrames.value = 0
     phase = 'up'
+    feedbackHistory.clear()
   }
 
   return {
@@ -103,5 +164,6 @@ export function usePostureFeedback() {
     repCount,
     processFrame,
     reset,
+    getSummary,
   }
 }
