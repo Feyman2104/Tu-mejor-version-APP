@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, computed, reactive, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { Link, router } from '@inertiajs/vue3'
+import Sortable from 'sortablejs'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import ExerciseModal from '@/Components/Workout/ExerciseModal.vue'
+import ExerciseSearchModal from '@/Components/Workout/ExerciseSearchModal.vue'
+import { useWorkoutSession } from '@/Composables/useWorkoutSession'
 import type { Routine, RoutineDay, RoutineExercise, WorkoutLog, Exercise } from '@/types'
 
 defineOptions({ layout: AppLayout })
@@ -17,25 +20,334 @@ const props = defineProps<{
 }>()
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+type SetType      = 'working' | 'warmup' | 'dropset' | 'failure'
+type SupersetType = 'superset' | 'biset' | 'prefatiga'
+
 interface ActiveSet {
-  setNumber: number
-  weightKg:  string
-  repsDone:  string
-  completed: boolean
-  savedId:   number | null
-  saving:    boolean
+  setNumber:    number
+  type:         SetType
+  weightKg:     string
+  repsDone:     string
+  completed:    boolean
+  savedId:      number | null
+  saving:       boolean
+  isDropChild?: boolean
 }
 
+interface SupersetGroup {
+  type:        SupersetType
+  exerciseIds: number[]
+}
+
+interface SetTypeMeta { label: string; color: string; bg: string; name: string; description: string }
+
+const SET_TYPE_META: Record<SetType, SetTypeMeta> = {
+  working: { label: 'T',  color: '#1DF412', bg: 'rgba(29,244,18,0.15)',  name: 'Trabajo',       description: 'Serie estándar con 1–2 RIR. Úsala para el volumen principal.' },
+  warmup:  { label: 'WU', color: '#F59E0B', bg: 'rgba(245,158,11,0.15)', name: 'Calentamiento', description: '40–60% 1RM, sin fatiga. No cuenta para el volumen.' },
+  dropset: { label: 'DS', color: '#8B5CF6', bg: 'rgba(139,92,246,0.15)', name: 'Drop Set',      description: 'Reduce el peso 20–30% al llegar al fallo y continúa.' },
+  failure: { label: 'F',  color: '#EF4444', bg: 'rgba(239,68,68,0.15)',  name: 'Fallo',         description: 'Lleva al fallo muscular. Solo en la última serie del grupo.' },
+}
+
+const SUPERSET_META: Record<SupersetType, { name: string; description: string; restSuggested: number }> = {
+  superset:  { name: 'Superserie', description: 'Grupos antagonistas (pecho + espalda). Descanso: 60–90s al final.', restSuggested: 75 },
+  biset:     { name: 'Biserie',    description: 'Mismo grupo muscular, 2 ejercicios distintos. Descanso: 90–120s.',  restSuggested: 105 },
+  prefatiga: { name: 'Pre-fatiga', description: 'Aislamiento antes de compuesto. Maximiza fatiga muscular. 90s.',    restSuggested: 90 },
+}
+
+// ─── Unidad de peso (kg / lbs) ────────────────────────────────────────────────
+type WeightUnit = 'kg' | 'lbs'
+const KG_TO_LBS = 2.20462
+const unit      = ref<WeightUnit>(
+  (localStorage.getItem('workout_unit') as WeightUnit | null) ?? 'kg'
+)
+
+function kgToDisplay(kg: number | string | null, u: WeightUnit): string {
+  const n = typeof kg === 'string' ? parseFloat(kg) : (kg ?? NaN)
+  if (isNaN(n)) return ''
+  return u === 'lbs' ? (n * KG_TO_LBS).toFixed(1) : n.toFixed(1)
+}
+
+function displayToKg(display: string, u: WeightUnit): string {
+  const n = parseFloat(display)
+  if (isNaN(n)) return ''
+  return u === 'lbs' ? (n / KG_TO_LBS).toFixed(2) : n.toFixed(2)
+}
+
+function setUnit(newUnit: WeightUnit): void {
+  if (newUnit === unit.value) return
+  for (const sets of Object.values(exerciseSets)) {
+    for (const set of sets) {
+      if (!set.weightKg) continue
+      const asKg = displayToKg(set.weightKg, unit.value)
+      set.weightKg = kgToDisplay(asKg, newUnit)
+    }
+  }
+  unit.value = newUnit
+  localStorage.setItem('workout_unit', newUnit)
+}
+
+function fmtAnterior(exerciseId: number): string {
+  const p = props.prevSets[exerciseId]
+  if (!p || p.weight_kg == null || p.reps_done == null) return '—'
+  return `${kgToDisplay(p.weight_kg, unit.value)} × ${p.reps_done}`
+}
+
+// ─── Selector de tipo de serie ────────────────────────────────────────────────
+const activePicker = ref<{ reId: number; idx: number; x: number; y: number } | null>(null)
+
+const pickerSet = computed(() =>
+  activePicker.value
+    ? (exerciseSets[activePicker.value.reId]?.[activePicker.value.idx] ?? null)
+    : null
+)
+
+function openPicker(reId: number, idx: number, e: MouseEvent): void {
+  e.stopPropagation()
+  if (activePicker.value?.reId === reId && activePicker.value?.idx === idx) {
+    activePicker.value = null; return
+  }
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  activePicker.value = {
+    reId, idx,
+    x: Math.min(rect.left, window.innerWidth - 274),
+    y: Math.min(rect.bottom + 6, window.innerHeight - 290),
+  }
+}
+
+function selectType(type: SetType): void {
+  if (!activePicker.value) return
+  const { reId, idx } = activePicker.value
+  exerciseSets[reId][idx].type = type
+  activePicker.value = null
+  // Drop set: ofrecer agregar series si no hay drops debajo ya
+  if (type === 'dropset') {
+    const next = exerciseSets[reId]?.[idx + 1]
+    if (!next || next.type !== 'dropset') {
+      dropCount.value = 2
+      dropDialog.value = { reId, idx }
+    }
+  }
+}
+
+function deleteSetFromPicker(): void {
+  if (!activePicker.value) return
+  const { reId, idx } = activePicker.value
+  const re = allExercises.value.find(e => e.id === reId)
+  if (re) deleteSet(re, idx)
+  activePicker.value = null
+}
+
+function onDocKeyDown(e: KeyboardEvent): void {
+  if (e.key === 'Escape') {
+    activePicker.value  = null
+    restPickerRe.value  = null
+    dropDialog.value    = null
+    activeMenu.value    = null
+    linkingSource.value = null
+  }
+}
+
+function onDocClickCapture(e: MouseEvent): void {
+  const t = e.target as Element
+  if (!t.closest('.type-picker'))    activePicker.value  = null
+  if (!t.closest('.exercise-menu'))  activeMenu.value    = null
+  if (!t.closest('.rest-sheet') && !t.closest('.rest-trigger')) restPickerRe.value = null
+}
+
+// ─── Descanso editable por ejercicio ─────────────────────────────────────────
+const restOverrides = reactive<Record<number, number>>({})
+
+function effectiveRest(re: RoutineExercise): number {
+  return restOverrides[re.id] ?? re.rest_seconds ?? 60
+}
+
+function restLabel(re: RoutineExercise): string {
+  const s = effectiveRest(re)
+  if (s === 0) return 'APAGADO'
+  const m   = Math.floor(s / 60)
+  const sec = s % 60
+  return m > 0 ? `${m}:${String(sec).padStart(2, '0')} descanso` : `${s}s descanso`
+}
+
+// ─── Bottom sheet picker de descanso ─────────────────────────────────────────
+const restPickerRe = ref<RoutineExercise | null>(null)
+const REST_OPTIONS = [0, ...Array.from({ length: 60 }, (_, i) => (i + 1) * 5)]
+
+function openRestPicker(re: RoutineExercise): void {
+  restPickerRe.value = re
+}
+function closeRestPicker(): void {
+  restPickerRe.value = null
+}
+function selectRestTime(seconds: number): void {
+  if (!restPickerRe.value) return
+  restOverrides[restPickerRe.value.id] = seconds
+  closeRestPicker()
+}
+
+// ─── Drop set dialog ──────────────────────────────────────────────────────────
+const dropDialog = ref<{ reId: number; idx: number } | null>(null)
+const dropCount  = ref(2)
+
+function confirmDropSets(): void {
+  if (!dropDialog.value) return
+  const { reId, idx } = dropDialog.value
+  const sets = exerciseSets[reId]
+  const base = sets[idx]
+  const newSets: ActiveSet[] = Array.from({ length: dropCount.value }, () => ({
+    setNumber:   0,
+    type:        'dropset' as SetType,
+    weightKg:    base.weightKg,
+    repsDone:    base.repsDone,
+    completed:   false,
+    savedId:     null,
+    saving:      false,
+    isDropChild: true,
+  }))
+  sets.splice(idx + 1, 0, ...newSets)
+  sets.forEach((s, i) => { s.setNumber = i + 1 })
+  dropDialog.value = null
+}
+
+// ─── Swipe to delete series ────────────────────────────────────────────────────
+let swipeStartX     = 0
+const openSwipeKey  = ref<string | null>(null)
+
+function swipeKey(reId: number, idx: number): string { return `${reId}-${idx}` }
+
+function onSetTouchStart(e: TouchEvent, reId: number, idx: number): void {
+  swipeStartX = e.touches[0].clientX
+  const key = swipeKey(reId, idx)
+  if (openSwipeKey.value && openSwipeKey.value !== key) openSwipeKey.value = null
+}
+
+function onSetTouchEnd(e: TouchEvent, reId: number, idx: number): void {
+  const dx  = e.changedTouches[0].clientX - swipeStartX
+  const key = swipeKey(reId, idx)
+  if (dx < -50)                                   openSwipeKey.value = key
+  else if (dx > 20 && openSwipeKey.value === key) openSwipeKey.value = null
+}
+
+function deleteSet(re: RoutineExercise, idx: number): void {
+  exerciseSets[re.id].splice(idx, 1)
+  exerciseSets[re.id].forEach((s, i) => { s.setNumber = i + 1 })
+  openSwipeKey.value = null
+}
+
+// ─── Menú ⋮ por ejercicio ─────────────────────────────────────────────────────
+const activeMenu  = ref<number | null>(null)
+const menuCoords  = ref({ x: 0, y: 0 })
+const reorderMode = ref(false)
+
+function toggleMenu(reId: number, e: MouseEvent): void {
+  e.stopPropagation()
+  if (activeMenu.value === reId) { activeMenu.value = null; return }
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  menuCoords.value = {
+    x: Math.min(rect.right - 180, window.innerWidth - 196),
+    y: Math.min(rect.bottom + 4,  window.innerHeight - 200),
+  }
+  activeMenu.value = reId
+}
+
+// ─── Reemplazar ejercicio ─────────────────────────────────────────────────────
+const replacingRe = ref<RoutineExercise | null>(null)
+
+function handleReplaceExercise(newEx: Exercise): void {
+  if (!replacingRe.value) return
+  const day = selectedDay.value
+  if (day) {
+    const found = day.exercises.find(e => e.id === replacingRe.value!.id)
+    if (found) { found.exercise = newEx; found.exercise_id = newEx.id }
+  }
+  const extra = extraExercises.value.find(e => e.id === replacingRe.value!.id)
+  if (extra) { extra.exercise = newEx; extra.exercise_id = newEx.id }
+  const oldId = replacingRe.value.id
+  exerciseSets[oldId] = Array.from({ length: replacingRe.value.sets ?? 3 }, (_, i) => ({
+    setNumber: i + 1, type: 'working' as SetType,
+    weightKg: '', repsDone: '', completed: false, savedId: null, saving: false,
+  }))
+  replacingRe.value  = null
+  activeMenu.value   = null
+}
+
+// ─── Superseries / Biseries ───────────────────────────────────────────────────
+const supersetGroups = reactive<Record<number, SupersetGroup>>({})
+const linkingSource  = ref<RoutineExercise | null>(null)
+const linkingType    = ref<SupersetType>('superset')
+
+function findSupersetGroup(reId: number): SupersetGroup | null {
+  const group = supersetGroups[reId]
+  return group ?? null
+}
+
+function startLinking(re: RoutineExercise): void {
+  linkingSource.value = re
+  activeMenu.value    = null
+}
+
+function confirmLink(targetRe: RoutineExercise): void {
+  if (!linkingSource.value || linkingSource.value.id === targetRe.id) return
+  const group: SupersetGroup = {
+    type:        linkingType.value,
+    exerciseIds: [linkingSource.value.id, targetRe.id],
+  }
+  supersetGroups[linkingSource.value.id] = group
+  supersetGroups[targetRe.id]            = group
+  linkingSource.value = null
+}
+
+function removeFromSuperset(reId: number): void {
+  const group = findSupersetGroup(reId)
+  if (!group) return
+  group.exerciseIds.forEach(id => { delete supersetGroups[id] })
+}
+
+// ─── Notas por ejercicio (solo sesión) ───────────────────────────────────────
+const exerciseNotes = reactive<Record<number, string>>({})
+
 // ─── State ────────────────────────────────────────────────────────────────────
-const activeLog     = ref<WorkoutLog | null>(props.todayLog)
-const logCreating   = ref(false)
-const completing    = ref(false)
-const selectedDay   = ref<RoutineDay | null>(props.todayDay ?? props.routine?.days?.[0] ?? null)
-const showDayPicker = ref(false)
-const activeReId    = ref<number | null>(null)
-const mood          = ref<string | null>(null)
-const sessionNotes  = ref('')
-const modalExercise = ref<Exercise | null>(null)
+const activeLog      = ref<WorkoutLog | null>(props.todayLog)
+const logCreating    = ref(false)
+const completing     = ref(false)
+const selectedDay    = ref<RoutineDay | null>(props.todayDay ?? props.routine?.days?.[0] ?? null)
+const showDayPicker  = ref(false)
+const activeReId     = ref<number | null>(null)
+const mood           = ref<string | null>(null)
+const sessionNotes   = ref('')
+const modalExercise  = ref<Exercise | null>(null)
+const showExSearch   = ref(false)
+
+// Ejercicios extra añadidos durante la sesión (no forman parte de la rutina original)
+// IDs negativos para distinguirlos de los routine_exercises reales.
+const extraExercises = ref<RoutineExercise[]>([])
+let extraIdCounter   = -1
+
+function addExtraExercise(ex: Exercise) {
+  const id = extraIdCounter--
+  const fakeRe: RoutineExercise = {
+    id,
+    routine_day_id: selectedDay.value?.id ?? 0,
+    exercise_id:    ex.id,
+    exercise:       ex,
+    sets:           3,
+    reps:           '10',
+    rest_seconds:   60,
+    rir:            null,
+    order:          999,
+  }
+  extraExercises.value.push(fakeRe)
+  exerciseSets[id] = Array.from({ length: 3 }, (_, i) => ({
+    setNumber: i + 1,
+    type:      'working' as SetType,
+    weightKg:  '',
+    repsDone:  '10',
+    completed: false,
+    savedId:   null,
+    saving:    false,
+  }))
+  activeReId.value = id
+}
 
 // Rest timer
 const restSeconds  = ref(0)
@@ -48,6 +360,51 @@ let elapsedInterval: ReturnType<typeof setInterval> | null = null
 
 // Sets por routine_exercise_id
 const exerciseSets = reactive<Record<number, ActiveSet[]>>({})
+
+// ─── Drag-to-reorder ejercicios ───────────────────────────────────────────────
+let sortableInstance: Sortable | null = null
+const exerciseListRef = ref<HTMLElement | null>(null)
+
+function initSortable(): void {
+  nextTick(() => {
+    if (!exerciseListRef.value) return
+    if (sortableInstance) { sortableInstance.destroy(); sortableInstance = null }
+    sortableInstance = Sortable.create(exerciseListRef.value, {
+      handle:            '.drag-handle',
+      animation:         150,
+      delay:             300,          // long-press para iniciar drag
+      delayOnTouchOnly:  true,         // solo en móvil
+      onEnd(evt) {
+        const oldIdx = evt.oldIndex
+        const newIdx = evt.newIndex
+        if (oldIdx === undefined || newIdx === undefined || oldIdx === newIdx) return
+        const dayExs   = [...(selectedDay.value?.exercises ?? [])]
+        const extraExs = [...extraExercises.value]
+        const all      = [...dayExs, ...extraExs]
+        const [moved]  = all.splice(oldIdx, 1)
+        all.splice(newIdx, 0, moved)
+        const dayLen = dayExs.length
+        if (selectedDay.value) selectedDay.value.exercises = all.slice(0, dayLen)
+        extraExercises.value = all.slice(dayLen)
+        saveExerciseOrder()
+      },
+    })
+  })
+}
+
+async function saveExerciseOrder(): Promise<void> {
+  if (!selectedDay.value) return
+  const order = selectedDay.value.exercises.filter(e => e.id > 0).map(e => e.id)
+  if (!order.length) return
+  try {
+    await fetch(route('routine.exercises.reorder'), {
+      method:      'PATCH',
+      credentials: 'same-origin',
+      headers:     { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
+      body:        JSON.stringify({ order }),
+    })
+  } catch { /* silent fail */ }
+}
 
 function csrf(): string {
   return (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content ?? ''
@@ -62,7 +419,8 @@ function initSets(day: RoutineDay | null) {
     const defaultReps = (re.reps ?? '').split(/[-x]/)[0].trim()
     exerciseSets[re.id] = Array.from({ length: re.sets ?? 3 }, (_, i) => ({
       setNumber: i + 1,
-      weightKg:  prev?.weight_kg != null ? String(prev.weight_kg) : '',
+      type:      'working' as SetType,
+      weightKg:  prev?.weight_kg != null ? kgToDisplay(prev.weight_kg, unit.value) : '',
       repsDone:  defaultReps || '',
       completed: false,
       savedId:   null,
@@ -71,17 +429,29 @@ function initSets(day: RoutineDay | null) {
   })
 }
 
+// ─── Contexto para el Coach IA ───────────────────────────────────────────────
+const workoutSession = useWorkoutSession()
+
+// watch de workoutSession → se registra después de los computeds (ver abajo)
+
 onMounted(() => {
   initSets(selectedDay.value)
   if (activeLog.value && !activeLog.value.completed) {
     startElapsed()
     setFirstActiveExercise()
   }
+  initSortable()
+  document.addEventListener('keydown', onDocKeyDown)
+  document.addEventListener('click', onDocClickCapture, true)
 })
 
 onUnmounted(() => {
-  if (restInterval) clearInterval(restInterval)
+  if (restInterval)    clearInterval(restInterval)
   if (elapsedInterval) clearInterval(elapsedInterval)
+  if (sortableInstance) { sortableInstance.destroy(); sortableInstance = null }
+  workoutSession.clear()
+  document.removeEventListener('keydown', onDocKeyDown)
+  document.removeEventListener('click', onDocClickCapture, true)
 })
 
 function setFirstActiveExercise() {
@@ -130,11 +500,16 @@ function selectDay(day: RoutineDay) {
 }
 
 // ─── Computed ─────────────────────────────────────────────────────────────────
-const totalSets = computed(() => {
-  if (!selectedDay.value) return 0
-  return selectedDay.value.exercises.reduce((sum, re) =>
+// Todos los ejercicios visibles (rutina del día + extras añadidos en sesión)
+const allExercises = computed<RoutineExercise[]>(() => [
+  ...(selectedDay.value?.exercises ?? []),
+  ...extraExercises.value,
+])
+
+const totalSets = computed(() =>
+  allExercises.value.reduce((sum, re) =>
     sum + (exerciseSets[re.id]?.length ?? re.sets ?? 0), 0)
-})
+)
 
 const completedCount = computed(() =>
   Object.values(exerciseSets).reduce((sum, sets) => sum + sets.filter(s => s.completed).length, 0)
@@ -155,8 +530,7 @@ const totalVolume = computed(() =>
 )
 
 const completedExercises = computed(() => {
-  if (!selectedDay.value) return 0
-  return selectedDay.value.exercises.filter(re => {
+  return allExercises.value.filter(re => {
     const sets = exerciseSets[re.id]
     return sets && sets.length > 0 && sets.every(s => s.completed)
   }).length
@@ -173,6 +547,51 @@ const restFormatted = computed(() => {
   const s = restSeconds.value % 60
   return `${m}:${String(s).padStart(2, '0')}`
 })
+
+// ─── Watch Coach IA — DESPUÉS de los computeds para evitar TDZ ───────────────
+watch(
+  () => ({
+    log:       activeLog.value,
+    exercises: allExercises.value,
+    sets:      { ...exerciseSets },
+    done:      completedCount.value,
+    total:     totalSets.value,
+    vol:       totalVolume.value,
+    elapsed:   elapsedSeconds.value,
+  }),
+  ({ log, exercises }) => {
+    if (!log || log.completed) {
+      workoutSession.clear()
+      return
+    }
+    workoutSession.update({
+      active:         true,
+      dayFocus:       selectedDay.value?.focus ?? 'general',
+      exercises:      exercises.map(re => {
+        const sets     = exerciseSets[re.id] ?? []
+        const done     = sets.filter(s => s.completed)
+        const lastDone = done.at(-1)
+        const lastSet  = lastDone
+          ? [
+              lastDone.weightKg ? `${lastDone.weightKg} kg` : null,
+              lastDone.repsDone ? `${lastDone.repsDone} reps` : null,
+            ].filter(Boolean).join(' × ') || null
+          : null
+        return {
+          name:      re.exercise?.name ?? '',
+          setsDone:  done.length,
+          setsTotal: sets.length,
+          lastSet,
+        }
+      }),
+      completedSets:  completedCount.value,
+      totalSets:      totalSets.value,
+      volumeKg:       totalVolume.value,
+      elapsedMinutes: Math.floor(elapsedSeconds.value / 60),
+    })
+  },
+  { immediate: true, deep: false },
+)
 
 // ─── Exercise status ──────────────────────────────────────────────────────────
 function exerciseStatus(re: RoutineExercise): 'done' | 'active' | 'pending' {
@@ -228,8 +647,20 @@ async function toggleSet(re: RoutineExercise, idx: number) {
   set.completed = true
   activeReId.value = re.id
 
-  // Iniciar timer de descanso
-  if (re.rest_seconds) startRestTimer(re.rest_seconds)
+  // Iniciar timer de descanso (con lógica de superserie)
+  const ssGroup = findSupersetGroup(re.id)
+  if (ssGroup) {
+    const myPos    = ssGroup.exerciseIds.indexOf(re.id)
+    const nextReId = ssGroup.exerciseIds[myPos + 1]
+    const nextPending = nextReId ? exerciseSets[nextReId]?.some(s => !s.completed) : false
+    if (nextReId && nextPending) {
+      activeReId.value = nextReId   // flujo automático al siguiente ejercicio
+    } else {
+      startRestTimer(SUPERSET_META[ssGroup.type].restSuggested)
+    }
+  } else if (re.rest_seconds || restOverrides[re.id]) {
+    startRestTimer(effectiveRest(re))
+  }
 
   try {
     const res = await fetch(route('workout.sets.store'), {
@@ -238,10 +669,11 @@ async function toggleSet(re: RoutineExercise, idx: number) {
       headers:     { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
       body:        JSON.stringify({
         workout_log_id:      activeLog.value.id,
-        routine_exercise_id: re.id,
+        // IDs negativos = ejercicios extra añadidos en sesión (sin routine_exercise)
+        routine_exercise_id: re.id > 0 ? re.id : null,
         set_number:          set.setNumber,
         reps_done:           parseInt(set.repsDone) || null,
-        weight_kg:           set.weightKg ? parseFloat(set.weightKg) : null,
+        weight_kg:           set.weightKg ? (parseFloat(displayToKg(set.weightKg, unit.value)) || null) : null,
       }),
     })
     if (res.ok) {
@@ -259,6 +691,7 @@ function addSet(re: RoutineExercise) {
   const last = sets[sets.length - 1]
   sets.push({
     setNumber: sets.length + 1,
+    type:      last?.type ?? 'working',
     weightKg:  last?.weightKg ?? '',
     repsDone:  last?.repsDone ?? '',
     completed: false,
@@ -351,8 +784,9 @@ const MOODS = [
             </h1>
             <!-- Elapsed time (only when log active) -->
             <div v-if="activeLog && !activeLog.completed"
-              style="font-size:13px;color:#9CA3AF;font-variant-numeric:tabular-nums;">
-              ⏱ {{ elapsedFormatted }}
+              style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:5px 12px;text-align:center;min-width:72px;">
+              <div style="font-size:9px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:1px;">⏱ Tiempo</div>
+              <div class="font-display font-bold" style="font-size:22px;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;line-height:1;">{{ elapsedFormatted }}</div>
             </div>
           </div>
 
@@ -390,7 +824,7 @@ const MOODS = [
         <div v-if="activeLog && !activeLog.completed"
           style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
           <div v-for="stat in [
-            { label: 'Ejercicios', value: completedExercises + '/' + (selectedDay?.exercises.length ?? 0) },
+            { label: 'Ejercicios', value: completedExercises + '/' + allExercises.length },
             { label: 'Series',     value: completedCount + '/' + totalSets },
             { label: 'Volumen',    value: totalVolume > 0 ? Math.round(totalVolume) + 'kg' : '—' },
           ]" :key="stat.label"
@@ -447,15 +881,54 @@ const MOODS = [
         </div>
 
         <!-- Lista de ejercicios ─────────────────────────────────────────────── -->
-        <div v-if="selectedDay" class="space-y-3">
+        <!-- Banner de modo reorden -->
+        <div v-if="reorderMode" style="display:flex;align-items:center;justify-content:space-between;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:12px;padding:10px 14px;margin-bottom:10px;">
+          <span style="font-size:12px;color:#3B82F6;font-weight:600;">↕ Arrastra los ejercicios para reordenar</span>
+          <button @click="reorderMode = false" style="background:none;border:none;color:#3B82F6;font-size:12px;font-weight:700;cursor:pointer;">Listo</button>
+        </div>
+        <!-- Banner de modo vinculación superset -->
+        <div v-if="linkingSource" style="display:flex;align-items:center;justify-content:space-between;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25);border-radius:12px;padding:10px 14px;margin-bottom:10px;">
+          <div>
+            <div style="font-size:12px;color:#8B5CF6;font-weight:600;">Selecciona el tipo de vinculación:</div>
+            <div style="display:flex;gap:6px;margin-top:6px;">
+              <button v-for="st in (['superset','biset','prefatiga'] as SupersetType[])" :key="st"
+                @click="linkingType = st"
+                style="font-size:10px;font-weight:700;border-radius:6px;padding:3px 8px;cursor:pointer;border:1.5px solid;"
+                :style="linkingType === st ? 'background:rgba(139,92,246,0.2);border-color:#8B5CF6;color:#8B5CF6;' : 'background:transparent;border-color:rgba(139,92,246,0.2);color:#6B7280;'">
+                {{ SUPERSET_META[st].name }}
+              </button>
+            </div>
+            <div style="font-size:11px;color:#6B7280;margin-top:4px;">
+              Vinculando: <strong style="color:#8B5CF6;">{{ linkingSource.exercise?.name }}</strong> → toca otro ejercicio
+            </div>
+          </div>
+          <button @click="linkingSource = null" style="background:none;border:none;color:#6B7280;font-size:18px;cursor:pointer;">×</button>
+        </div>
 
-          <div v-for="re in selectedDay.exercises" :key="re.id"
+        <div v-if="selectedDay" ref="exerciseListRef" class="space-y-3">
+
+          <div v-for="re in allExercises" :key="re.id"
             style="border-radius:18px;overflow:hidden;transition:all 0.2s;"
-            :style="exerciseStatus(re) === 'active'
-              ? 'background:rgba(29,244,18,0.04);border:1px solid rgba(29,244,18,0.25);'
-              : exerciseStatus(re) === 'done'
-                ? 'background:#111;border:1px solid rgba(255,255,255,0.04);opacity:0.8;'
-                : 'background:#161616;border:1px solid rgba(255,255,255,0.06);'">
+            :style="[
+              exerciseStatus(re) === 'active'
+                ? 'background:rgba(29,244,18,0.04);border:1px solid rgba(29,244,18,0.25);'
+                : exerciseStatus(re) === 'done'
+                  ? 'background:#111;border:1px solid rgba(255,255,255,0.04);opacity:0.8;'
+                  : 'background:#161616;border:1px solid rgba(255,255,255,0.06);',
+              supersetGroups[re.id] ? 'border-left:3px solid #3B82F6 !important;' : '',
+              linkingSource && linkingSource.id !== re.id ? 'cursor:pointer;' : '',
+            ].join('')"
+            @click="linkingSource && linkingSource.id !== re.id ? confirmLink(re) : null">
+
+            <!-- Handle de drag (siempre visible; mantén pulsado para arrastrar) -->
+            <div class="drag-handle"
+              style="display:flex;align-items:center;justify-content:center;padding:6px 0 0;cursor:grab;touch-action:none;"
+              :style="reorderMode ? 'color:#3B82F6;' : 'color:#2A2A2A;'">
+              <svg width="18" height="10" viewBox="0 0 18 10" fill="currentColor">
+                <circle cx="4" cy="2" r="1.5"/><circle cx="9" cy="2" r="1.5"/><circle cx="14" cy="2" r="1.5"/>
+                <circle cx="4" cy="8" r="1.5"/><circle cx="9" cy="8" r="1.5"/><circle cx="14" cy="8" r="1.5"/>
+              </svg>
+            </div>
 
             <!-- Cabecera del ejercicio ──────────────────────────────────────── -->
             <div class="flex items-start gap-3" style="padding:14px 14px 10px;">
@@ -479,22 +952,47 @@ const MOODS = [
               </button>
 
               <div style="flex:1;min-width:0;">
+                <!-- Nombre + PR + ⋮ -->
                 <div class="flex items-start justify-between gap-2" style="margin-bottom:3px;">
-                  <!-- Nombre — abre modal + activa ejercicio -->
                   <button @click="modalExercise = re.exercise"
                     class="text-left font-display font-bold"
                     style="font-size:15px;letter-spacing:-0.01em;line-height:1.2;background:none;border:none;color:#fff;cursor:pointer;padding:0;text-decoration:underline;text-decoration-color:rgba(29,244,18,0.3);text-underline-offset:3px;">
                     {{ re.exercise?.name }}
                   </button>
-                  <!-- PR badge -->
-                  <span v-if="hasPR(re)"
-                    style="flex-shrink:0;font-size:9px;font-weight:700;background:rgba(245,158,11,0.15);color:#F59E0B;border-radius:5px;padding:2px 6px;text-transform:uppercase;letter-spacing:0.08em;">
-                    🏆 PR
+                  <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                    <!-- PR badge -->
+                    <span v-if="hasPR(re)"
+                      style="font-size:9px;font-weight:700;background:rgba(245,158,11,0.15);color:#F59E0B;border-radius:5px;padding:2px 6px;text-transform:uppercase;letter-spacing:0.08em;">
+                      🏆 PR
+                    </span>
+                    <!-- Superset badge -->
+                    <span v-if="supersetGroups[re.id]"
+                      style="font-size:9px;font-weight:700;background:rgba(59,130,246,0.15);color:#3B82F6;border-radius:5px;padding:2px 6px;letter-spacing:0.06em;">
+                      {{ SUPERSET_META[supersetGroups[re.id].type].name.toUpperCase() }}
+                    </span>
+                    <!-- Botón ⋮ -->
+                    <button v-if="activeLog && !activeLog.completed"
+                      @click.stop="toggleMenu(re.id, $event)"
+                      style="background:none;border:none;cursor:pointer;padding:2px 4px;color:#4B5563;line-height:1;font-size:18px;letter-spacing:0.05em;">
+                      ···
+                    </button>
+                  </div>
+                </div>
+                <!-- Subtexto info -->
+                <div style="font-size:11px;color:#6B7280;margin-bottom:4px;">
+                  {{ re.sets }} series · {{ re.reps }} reps
+                </div>
+                <!-- Fila de descanso prominente -->
+                <button class="rest-trigger" @click.stop="openRestPicker(re)"
+                  style="display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;padding:0;margin-bottom:3px;">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1DF412" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                  <span style="font-size:12px;font-weight:700;"
+                    :style="effectiveRest(re) === 0 ? 'color:#4B5563;' : 'color:#1DF412;'">
+                    {{ restLabel(re) }}
                   </span>
-                </div>
-                <div style="font-size:11px;color:#6B7280;">
-                  {{ re.sets }} series · {{ re.reps }} reps · {{ re.rest_seconds }}s descanso
-                </div>
+                </button>
                 <div style="font-size:11px;color:#374151;margin-top:2px;">
                   Anterior: {{ prevLabel(re.exercise.id) }}
                 </div>
@@ -516,7 +1014,7 @@ const MOODS = [
                 <!-- Pending -->
                 <div v-else
                   style="width:30px;height:30px;border-radius:50%;background:#1A1A1A;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#374151;">
-                  {{ selectedDay!.exercises.findIndex(e => e.id === re.id) + 1 }}
+                  {{ re.id < 0 ? '+' : allExercises.findIndex(e => e.id === re.id) + 1 }}
                 </div>
               </button>
             </div>
@@ -527,56 +1025,89 @@ const MOODS = [
 
               <!-- Header columnas -->
               <div class="grid"
-                style="grid-template-columns:28px 1fr 1fr 40px;gap:6px;padding-bottom:6px;font-size:10px;color:#374151;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;text-align:center;">
-                <span>Set</span>
-                <span>Kg</span>
+                style="grid-template-columns:40px 70px 1fr 1fr 36px;gap:6px;padding-bottom:6px;font-size:10px;color:#374151;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;text-align:center;">
+                <span></span>
+                <span>ANT.</span>
+                <span
+                  @click="setUnit(unit === 'kg' ? 'lbs' : 'kg')"
+                  style="cursor:pointer;user-select:none;text-decoration:underline dotted;text-underline-offset:3px;"
+                  :style="unit === 'lbs' ? 'color:#F59E0B;' : 'color:#9CA3AF;'">
+                  {{ unit === 'kg' ? 'KG' : 'LBS' }}
+                </span>
                 <span>Reps</span>
                 <span></span>
               </div>
 
-              <!-- Filas de series -->
+              <!-- Filas de series con swipe-to-delete -->
               <div v-for="(set, idx) in exerciseSets[re.id]" :key="idx"
-                class="grid"
-                style="grid-template-columns:28px 1fr 1fr 40px;gap:6px;margin-bottom:6px;align-items:center;border-radius:8px;padding:2px 0;transition:background 0.15s;"
-                :style="set.completed ? 'background:rgba(29,244,18,0.05);' : ''">
+                style="position:relative;overflow:hidden;margin-bottom:6px;border-radius:8px;"
+                :style="set.isDropChild ? 'border-left:2px solid rgba(139,92,246,0.45);margin-left:10px;' : ''">
+                <!-- Botón eliminar (detrás, swipe) -->
+                <div style="position:absolute;right:0;top:0;bottom:0;width:80px;background:#EF4444;display:flex;align-items:center;justify-content:center;border-radius:0 8px 8px 0;">
+                  <button @click.stop="deleteSet(re, idx)"
+                    style="background:none;border:none;color:#fff;font-size:12px;font-weight:700;cursor:pointer;width:100%;height:100%;">
+                    Eliminar
+                  </button>
+                </div>
+                <!-- Fila de serie (encima, deslizable) -->
+                <div
+                  @touchstart="onSetTouchStart($event, re.id, idx)"
+                  @touchend="onSetTouchEnd($event, re.id, idx)"
+                  style="display:grid;grid-template-columns:40px 70px 1fr 1fr 36px;gap:6px;align-items:center;padding:2px 0;transition:transform 0.2s ease,background 0.15s;"
+                  :style="{
+                    transform: `translateX(${openSwipeKey === swipeKey(re.id, idx) ? -80 : 0}px)`,
+                    background: set.completed ? 'rgba(29,244,18,0.06)' : '#161616',
+                  }">
 
-                <!-- Nº serie -->
-                <span class="font-display font-bold text-center"
-                  style="font-size:13px;"
-                  :style="set.completed ? 'color:#1DF412;' : 'color:#4B5563;'">
-                  {{ set.setNumber }}
-                </span>
+                  <!-- Nº serie + tipo → abre selector (picker vía Teleport) -->
+                  <div>
+                    <div @click="activeLog && !activeLog.completed ? openPicker(re.id, idx, $event) : null"
+                      style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;min-height:40px;user-select:none;">
+                      <span class="font-display font-bold" style="font-size:13px;line-height:1;"
+                        :style="{color: set.completed ? '#1DF412' : SET_TYPE_META[set.type].color}">
+                        {{ set.setNumber }}
+                      </span>
+                      <span style="font-size:8px;font-weight:700;border-radius:3px;padding:1px 4px;line-height:1.4;"
+                        :style="{background: SET_TYPE_META[set.type].bg, color: SET_TYPE_META[set.type].color}">
+                        {{ SET_TYPE_META[set.type].label }}
+                      </span>
+                    </div>
+                  </div>
 
-                <!-- Peso -->
-                <input v-model="set.weightKg" type="number" min="0" step="0.5"
-                  placeholder="—" :disabled="!activeLog || set.completed"
-                  class="text-center font-bold rounded-lg"
-                  style="background:#0D0D0D;border:1px solid rgba(255,255,255,0.07);color:#fff;padding:8px 4px;font-size:14px;outline:none;width:100%;-moz-appearance:textfield;"
-                  :style="set.completed ? 'opacity:0.45;' : ''"
-                />
+                  <!-- ANTERIOR (columna 2) -->
+                  <div style="font-size:11px;color:rgba(255,255,255,0.28);text-align:center;font-variant-numeric:tabular-nums;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:2px 0;">
+                    {{ fmtAnterior(re.exercise.id) }}
+                  </div>
 
-                <!-- Reps -->
-                <input v-model="set.repsDone" type="number" min="0" step="1"
-                  placeholder="—" :disabled="!activeLog || set.completed"
-                  class="text-center font-bold rounded-lg"
-                  style="background:#0D0D0D;border:1px solid rgba(255,255,255,0.07);color:#fff;padding:8px 4px;font-size:14px;outline:none;width:100%;-moz-appearance:textfield;"
-                  :style="set.completed ? 'opacity:0.45;' : ''"
-                />
+                  <!-- Peso (columna 3) -->
+                  <input v-model="set.weightKg" type="number" min="0" step="0.5"
+                    placeholder="—" :disabled="!activeLog"
+                    class="text-center font-bold rounded-lg"
+                    style="background:#0D0D0D;border:1px solid rgba(255,255,255,0.07);color:#fff;padding:8px 4px;font-size:14px;outline:none;width:100%;-moz-appearance:textfield;"
+                  />
 
-                <!-- Check -->
-                <button @click="toggleSet(re, idx)" :disabled="!activeLog || set.saving"
-                  class="flex items-center justify-center transition-all"
-                  style="width:40px;height:36px;border-radius:10px;border:1.5px solid;cursor:pointer;flex-shrink:0;"
-                  :style="set.completed
-                    ? 'background:#1DF412;border-color:#1DF412;'
-                    : 'background:#0D0D0D;border-color:rgba(255,255,255,0.1);'">
-                  <svg v-if="set.completed" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  <div v-else-if="set.saving" style="width:12px;height:12px;border:2px solid #1DF412;border-top-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;"/>
-                  <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                </button>
+                  <!-- Reps (columna 4) -->
+                  <input v-model="set.repsDone" type="number" min="0" step="1"
+                    placeholder="—" :disabled="!activeLog"
+                    class="text-center font-bold rounded-lg"
+                    style="background:#0D0D0D;border:1px solid rgba(255,255,255,0.07);color:#fff;padding:8px 4px;font-size:14px;outline:none;width:100%;-moz-appearance:textfield;"
+                  />
+
+                  <!-- Check (columna 5) -->
+                  <button @click="toggleSet(re, idx)" :disabled="!activeLog || set.saving"
+                    class="flex items-center justify-center transition-all"
+                    style="width:36px;height:36px;border-radius:10px;border:1.5px solid;cursor:pointer;flex-shrink:0;"
+                    :style="set.completed
+                      ? 'background:#1DF412;border-color:#1DF412;'
+                      : 'background:#0D0D0D;border-color:rgba(255,255,255,0.1);'">
+                    <svg v-if="set.completed" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    <div v-else-if="set.saving" style="width:12px;height:12px;border:2px solid #1DF412;border-top-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;"/>
+                    <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </button>
+                </div>
               </div>
 
-              <!-- Botones agregar/quitar serie -->
+              <!-- Botones agregar/quitar serie + toggle kg/lbs -->
               <div v-if="activeLog && !activeLog.completed"
                 class="flex items-center gap-2" style="padding:6px 0 14px;">
                 <button @click="addSet(re)"
@@ -594,12 +1125,37 @@ const MOODS = [
               </div>
             </div>
 
-            <!-- Nota del ejercicio -->
-            <div v-if="re.notes && exerciseStatus(re) !== 'pending'"
-              style="padding:0 16px 14px;font-size:12px;color:#4B5563;line-height:1.5;">
-              💡 {{ re.notes }}
+            <!-- Notas del ejercicio (sesión + nota fija de rutina) -->
+            <div v-if="exerciseStatus(re) !== 'pending' || exerciseNotes[re.id] !== undefined"
+              style="padding:0 16px 12px;">
+              <div v-if="re.notes" style="font-size:12px;color:#4B5563;line-height:1.5;margin-bottom:6px;">
+                💡 {{ re.notes }}
+              </div>
+              <textarea
+                v-model="exerciseNotes[re.id]"
+                placeholder="Añadir nota para este ejercicio..."
+                rows="2"
+                style="width:100%;background:#0D0D0D;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;color:#fff;font-size:12px;outline:none;resize:none;line-height:1.5;font-family:inherit;"
+              />
             </div>
+            <!-- Botón para abrir notas cuando está pendiente y no hay nota aún -->
+            <button v-if="exerciseStatus(re) === 'pending' && exerciseNotes[re.id] === undefined"
+              @click.stop="exerciseNotes[re.id] = ''"
+              style="background:none;border:none;color:#374151;font-size:11px;cursor:pointer;padding:0 16px 10px;display:block;">
+              + Nota
+            </button>
           </div>
+
+          <!-- Botón agregar ejercicio extra (solo cuando el entrenamiento está activo) -->
+          <button v-if="activeLog && !activeLog.completed"
+            @click="showExSearch = true"
+            class="w-full flex items-center justify-center gap-2 font-bold"
+            style="border-radius:14px;padding:13px;font-size:13px;cursor:pointer;background:transparent;border:1.5px dashed rgba(255,255,255,0.12);color:#6B7280;margin-top:4px;transition:all 0.15s;"
+            onmouseover="this.style.borderColor='rgba(29,244,18,0.4)';this.style.color='#1DF412'"
+            onmouseout="this.style.borderColor='rgba(255,255,255,0.12)';this.style.color='#6B7280'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Agregar ejercicio
+          </button>
 
         </div>
 
@@ -660,7 +1216,7 @@ const MOODS = [
           <!-- Stats finales -->
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;margin-bottom:20px;">
             <div v-for="s in [
-              { label: 'Ejercicios', value: selectedDay?.exercises.length },
+              { label: 'Ejercicios', value: allExercises.length },
               { label: 'Series',     value: completedCount },
               { label: 'Volumen',    value: Math.round(totalVolume) + 'kg' },
             ]" :key="s.label"
@@ -686,7 +1242,194 @@ const MOODS = [
       :exercise="modalExercise"
       @close="modalExercise = null"
     />
+
+    <!-- Buscador de ejercicios — agregar extra ──────────────────────────────── -->
+    <ExerciseSearchModal
+      v-if="showExSearch"
+      @select="addExtraExercise"
+      @close="showExSearch = false"
+    />
+
+    <!-- Buscador de ejercicios — reemplazar desde menú ⋮ ───────────────────── -->
+    <ExerciseSearchModal
+      v-if="replacingRe"
+      @select="handleReplaceExercise"
+      @close="replacingRe = null"
+    />
   </div>
+
+  <!-- Picker de tipo de serie (Teleport para escapar overflow:hidden del card) -->
+  <Teleport to="body">
+    <div v-if="activePicker && pickerSet"
+      class="type-picker" @click.stop
+      :style="{
+        position:'fixed',
+        top: activePicker.y + 'px',
+        left: activePicker.x + 'px',
+        width:'264px',
+        zIndex:200,
+        background:'#161616',
+        border:'1px solid rgba(255,255,255,0.1)',
+        borderRadius:'14px',
+        padding:'6px',
+        boxShadow:'0 8px 32px rgba(0,0,0,0.8)',
+        maxHeight:'280px',
+        overflowY:'auto',
+      }">
+      <div v-for="typeKey in (['working','warmup','dropset','failure'] as SetType[])" :key="typeKey"
+        @click="selectType(typeKey)"
+        style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;margin-bottom:2px;transition:background 0.1s;"
+        :style="{
+          background: pickerSet.type === typeKey ? SET_TYPE_META[typeKey].bg : 'transparent',
+          border: pickerSet.type === typeKey ? `1px solid ${SET_TYPE_META[typeKey].color}40` : '1px solid transparent',
+        }">
+        <div style="width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;letter-spacing:-0.02em;"
+          :style="{background: SET_TYPE_META[typeKey].bg, color: SET_TYPE_META[typeKey].color}">
+          {{ SET_TYPE_META[typeKey].label }}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:2px;line-height:1.2;"
+            :style="{color: pickerSet.type === typeKey ? SET_TYPE_META[typeKey].color : '#fff'}">
+            {{ SET_TYPE_META[typeKey].name }}
+          </div>
+          <div style="font-size:11px;color:#9CA3AF;line-height:1.4;">{{ SET_TYPE_META[typeKey].description }}</div>
+        </div>
+        <svg v-if="pickerSet.type === typeKey" width="14" height="14" viewBox="0 0 24 24" fill="none"
+          :stroke="SET_TYPE_META[typeKey].color" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+      <!-- Separador + Eliminar serie -->
+      <div style="height:1px;background:rgba(255,255,255,0.06);margin:4px 6px;"/>
+      <div @click="deleteSetFromPicker()"
+        style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;transition:background 0.1s;"
+        onmouseover="this.style.background='rgba(239,68,68,0.08)'" onmouseout="this.style.background='transparent'">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(239,68,68,0.12);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;">
+          🗑
+        </div>
+        <span style="font-size:13px;font-weight:700;color:#EF4444;">Eliminar esta serie</span>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Menú ⋮ por ejercicio -->
+  <Teleport to="body">
+    <div v-if="activeMenu !== null" class="exercise-menu" @click.stop
+      :style="{
+        position:'fixed',
+        top: menuCoords.y + 'px',
+        left: menuCoords.x + 'px',
+        width:'192px',
+        zIndex:210,
+        background:'#161616',
+        border:'1px solid rgba(255,255,255,0.1)',
+        borderRadius:'14px',
+        padding:'6px',
+        boxShadow:'0 8px 32px rgba(0,0,0,0.9)',
+      }">
+      <!-- Reordenar -->
+      <div @click="reorderMode = !reorderMode; activeMenu = null"
+        style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;transition:background 0.1s;"
+        onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='transparent'">
+        <span style="font-size:16px;">↕</span>
+        <span style="font-size:13px;font-weight:600;color:#fff;">{{ reorderMode ? 'Terminar reorden' : 'Reordenar' }}</span>
+      </div>
+      <!-- Reemplazar ejercicio -->
+      <div @click="replacingRe = allExercises.find(e => e.id === activeMenu) ?? null; activeMenu = null"
+        style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;transition:background 0.1s;"
+        onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='transparent'">
+        <span style="font-size:16px;">🔄</span>
+        <span style="font-size:13px;font-weight:600;color:#fff;">Reemplazar ejercicio</span>
+      </div>
+      <!-- Vincular superserie -->
+      <div @click="startLinking(allExercises.find(e => e.id === activeMenu)!)"
+        style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;transition:background 0.1s;"
+        onmouseover="this.style.background='rgba(255,255,255,0.06)'" onmouseout="this.style.background='transparent'">
+        <span style="font-size:16px;">🔗</span>
+        <span style="font-size:13px;font-weight:600;color:#fff;">Vincular superserie</span>
+      </div>
+      <!-- Desvincular (solo si está en superset) -->
+      <div v-if="activeMenu !== null && supersetGroups[activeMenu]"
+        @click="removeFromSuperset(activeMenu!); activeMenu = null"
+        style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;transition:background 0.1s;"
+        onmouseover="this.style.background='rgba(239,68,68,0.08)'" onmouseout="this.style.background='transparent'">
+        <span style="font-size:16px;">✂️</span>
+        <span style="font-size:13px;font-weight:600;color:#EF4444;">Desvincular superserie</span>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Drop set dialog -->
+  <Teleport to="body">
+    <div v-if="dropDialog" style="position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:400;display:flex;align-items:center;justify-content:center;padding:20px;">
+      <div style="background:#161616;border:1px solid rgba(255,255,255,0.1);border-radius:18px;padding:24px;width:100%;max-width:300px;text-align:center;">
+        <div style="font-size:16px;font-weight:700;color:#8B5CF6;margin-bottom:6px;">Drop Set</div>
+        <div style="font-size:12px;color:#9CA3AF;margin-bottom:20px;line-height:1.6;">
+          Baja el peso ~20% por bajada.<br>
+          <span style="color:#6B7280;">Recomendado: 2 bajadas (máx. 3)</span>
+        </div>
+        <!-- Selector 1 / 2 / 3 -->
+        <div style="display:flex;gap:12px;justify-content:center;margin-bottom:20px;">
+          <button v-for="n in [1,2,3]" :key="n" @click="dropCount = n"
+            style="width:64px;height:64px;border-radius:14px;border:1.5px solid;cursor:pointer;font-size:22px;font-weight:700;transition:all 0.15s;"
+            :style="dropCount === n
+              ? 'background:rgba(139,92,246,0.15);border-color:#8B5CF6;color:#8B5CF6;'
+              : 'background:#0D0D0D;border-color:rgba(255,255,255,0.1);color:#6B7280;'">
+            {{ n }}
+          </button>
+        </div>
+        <div style="font-size:11px;color:#4B5563;margin-bottom:18px;">bajadas adicionales</div>
+        <div style="display:flex;gap:10px;">
+          <button @click="dropDialog = null"
+            style="flex:1;padding:13px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;background:transparent;color:#6B7280;cursor:pointer;font-size:14px;font-weight:600;">
+            Cancelar
+          </button>
+          <button @click="confirmDropSets()"
+            style="flex:1;padding:13px;background:#8B5CF6;border:none;border-radius:10px;color:#fff;font-weight:700;cursor:pointer;font-size:14px;">
+            Agregar
+          </button>
+        </div>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Bottom sheet — picker de tiempo de descanso -->
+  <Teleport to="body">
+    <!-- Overlay -->
+    <div v-if="restPickerRe" @click="closeRestPicker"
+      style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;"/>
+    <!-- Sheet -->
+    <div v-if="restPickerRe" class="rest-sheet"
+      style="position:fixed;bottom:0;left:0;right:0;z-index:301;background:#161616;border-radius:20px 20px 0 0;padding-bottom:env(safe-area-inset-bottom,16px);">
+      <!-- Handle -->
+      <div style="width:40px;height:4px;background:rgba(255,255,255,0.15);border-radius:2px;margin:12px auto 0;"/>
+      <!-- Título -->
+      <div style="padding:14px 20px 4px;font-size:13px;font-weight:700;color:#9CA3AF;text-align:center;">
+        Tiempo de descanso — {{ restPickerRe.exercise?.name }}
+      </div>
+      <!-- Rueda scroll -->
+      <div style="position:relative;height:220px;overflow:hidden;">
+        <!-- Indicador central -->
+        <div style="position:absolute;top:50%;left:16px;right:16px;height:44px;transform:translateY(-50%);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;pointer-events:none;z-index:1;"/>
+        <div style="height:220px;overflow-y:scroll;scroll-snap-type:y mandatory;padding:88px 0;">
+          <div v-for="s in REST_OPTIONS" :key="s"
+            @click="selectRestTime(s)"
+            style="scroll-snap-align:center;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:color 0.1s;"
+            :style="effectiveRest(restPickerRe) === s
+              ? 'color:#1DF412;font-size:20px;font-weight:700;'
+              : 'color:#4B5563;font-size:16px;font-weight:600;'">
+            {{ s === 0 ? '— APAGADO' : s < 60 ? s + 's' : Math.floor(s/60) + ':' + String(s%60).padStart(2,'0') }}
+          </div>
+        </div>
+      </div>
+      <div style="padding:8px 16px 16px;">
+        <button @click="closeRestPicker"
+          style="width:100%;padding:14px;background:#1DF412;color:#000;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;">
+          Confirmar
+        </button>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>

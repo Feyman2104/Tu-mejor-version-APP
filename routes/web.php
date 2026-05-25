@@ -8,6 +8,7 @@ use App\Http\Controllers\ExerciseController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PostureController;
 use App\Http\Controllers\ProgressController;
+use App\Http\Controllers\RoutineExerciseController;
 use App\Http\Controllers\WorkoutController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -40,7 +41,9 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Ejercicios
+    // Ejercicios — rutas estáticas ANTES de la ruta con parámetro :slug
+    Route::get('/exercises/search', [ExerciseController::class, 'apiSearch'])->name('exercises.search');
+    Route::get('/exercises/gifs',   [ExerciseController::class, 'gifsByKeys'])->name('exercises.gifs');
     Route::get('/exercises', [ExerciseController::class, 'index'])->name('exercises.index');
     Route::get('/exercises/{exercise:slug}', [ExerciseController::class, 'show'])->name('exercises.show');
 
@@ -54,6 +57,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Rutinas
     Route::post('/routines/generate', [WorkoutController::class, 'generateRoutine'])->name('routines.generate');
+    Route::patch('/routine-exercises/reorder', [RoutineExerciseController::class, 'reorder'])->name('routine.exercises.reorder');
 
     // Postura
     Route::get('/posture', [PostureController::class, 'index'])->name('posture.index');
