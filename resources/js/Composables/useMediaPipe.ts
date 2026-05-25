@@ -51,6 +51,7 @@ export function useMediaPipe() {
     videoEl: HTMLVideoElement,
     canvasEl: HTMLCanvasElement,
     onResults: (results: PoseResults) => void,
+    facingMode: 'user' | 'environment' = 'user',
   ): Promise<void> {
     errorMessage.value = null
     onResultsCallback = onResults
@@ -81,8 +82,8 @@ export function useMediaPipe() {
         modelComplexity: 1,
         smoothLandmarks: true,
         enableSegmentation: false,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5,
+        minDetectionConfidence: 0.4,   // era 0.5; bajado para mejorar detección con luz variable
+        minTrackingConfidence: 0.4,    // era 0.5
       })
 
       const ctx = canvasEl.getContext('2d')!
@@ -117,8 +118,9 @@ export function useMediaPipe() {
         onFrame: async () => {
           await pose.value.send({ image: videoEl })
         },
-        width: 640,
-        height: 480,
+        width: 960,
+        height: 720,
+        facingMode,
       })
 
       await camera.value.start()

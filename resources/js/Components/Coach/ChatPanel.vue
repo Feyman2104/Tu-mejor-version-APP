@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref, nextTick, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import { usePage } from '@inertiajs/vue3'
+import { useWorkoutSession } from '@/Composables/useWorkoutSession'
 import type { User } from '@/types'
 
 const page = usePage()
 const user = page.props.auth?.user as User | null
+const workoutSession = useWorkoutSession()
 
 interface LocalMessage {
   id: number
@@ -19,12 +21,22 @@ const messagesEnd = ref<HTMLElement | null>(null)
 
 const firstName = user?.name?.split(' ')[0] ?? 'campeón'
 
-const QUICK = [
-  'Dame un consejo para hoy',
-  '¿Cuántas proteínas debo comer?',
-  'Ejercicios para pierna en casa',
-  'Cómo mejorar mi sentadilla',
-]
+// Sugerencias rápidas adaptadas según si hay sesión activa
+const QUICK = computed(() =>
+  workoutSession.sessionContext.value.active
+    ? [
+        '¿Cómo optimizo mi técnica en este entrenamiento?',
+        '¿Cuánto tiempo de descanso necesito?',
+        'Analiza mi progreso de hoy',
+        '¿Debo aumentar el peso en el próximo set?',
+      ]
+    : [
+        'Dame un consejo para hoy',
+        '¿Cuántas proteínas debo comer?',
+        'Ejercicios para pierna en casa',
+        'Cómo mejorar mi sentadilla',
+      ],
+)
 
 function scrollToBottom() {
   nextTick(() => messagesEnd.value?.scrollIntoView({ behavior: 'smooth' }))
@@ -58,7 +70,12 @@ async function send() {
         'X-XSRF-TOKEN': xsrfToken(),
         'Accept': 'text/event-stream',
       },
-      body: JSON.stringify({ message: text }),
+      body: JSON.stringify({
+        message: text,
+        ...(workoutSession.contextString.value
+          ? { workout_context: workoutSession.contextString.value }
+          : {}),
+      }),
     })
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -102,7 +119,16 @@ function onKeydown(e: KeyboardEvent) {
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
         </div>
         <p style="font-size:14px;font-weight:700;color:#fff;margin-bottom:4px;">¡Hola, {{ firstName }}! 💪</p>
-        <p style="font-size:12px;color:#9CA3AF;line-height:1.5;margin-bottom:16px;">Soy tu Coach IA. Pregúntame cualquier cosa.</p>
+        <p style="font-size:12px;color:#9CA3AF;line-height:1.5;margin-bottom:10px;">Soy tu Coach IA. Pregúntame cualquier cosa.</p>
+        <!-- Badge sesión activa -->
+        <div v-if="workoutSession.sessionContext.value.active"
+          style="display:inline-flex;align-items:center;gap:6px;background:rgba(29,244,18,0.08);border:1px solid rgba(29,244,18,0.2);border-radius:99px;padding:5px 12px;margin-bottom:14px;">
+          <span style="width:6px;height:6px;border-radius:50%;background:#1DF412;animation:pulse 1.5s infinite;"></span>
+          <span style="font-size:11px;color:#1DF412;font-weight:700;">Sesión activa — {{
+            workoutSession.sessionContext.value.completedSets
+          }}/{{ workoutSession.sessionContext.value.totalSets }} series</span>
+        </div>
+        <div v-else style="margin-bottom:14px;"></div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;">
           <button v-for="q in QUICK" :key="q"
             @click="input = q; send()"
@@ -167,5 +193,9 @@ function onKeydown(e: KeyboardEvent) {
 @keyframes bounce {
   0%, 60%, 100% { transform: translateY(0); }
   30% { transform: translateY(-5px); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
 }
 </style>

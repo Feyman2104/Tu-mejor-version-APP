@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Exercise;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -30,6 +31,57 @@ class ExerciseController extends Controller
             'exercises' => $exercises,
             'filters'   => $request->only('search', 'environment', 'level'),
         ]);
+    }
+
+    /**
+     * Devuelve el primer gif_url disponible por cada knowledge_key solicitado.
+     * Usado por el analizador de postura (briefing pre-ejercicio).
+     * GET /exercises/gifs?keys[]=squat&keys[]=pushup...
+     * Respuesta: { "squat": "https://...", "pushup": "https://..." }
+     */
+    public function gifsByKeys(Request $request): JsonResponse
+    {
+        $keys = array_filter((array) $request->input('keys', []), fn ($k) => is_string($k) && strlen($k) <= 60);
+
+        if (empty($keys)) {
+            return response()->json([]);
+        }
+
+        $exercises = Exercise::whereIn('knowledge_key', $keys)
+            ->whereNotNull('gif_url')
+            ->select('knowledge_key', 'gif_url')
+            ->orderBy('id')
+            ->get();
+
+        // Un gif por key (el primero con imagen)
+        $result = [];
+        foreach ($exercises as $exercise) {
+            $result[$exercise->knowledge_key] ??= $exercise->gif_url;
+        }
+
+        return response()->json($result);
+    }
+
+    /**
+     * Endpoint JSON para el buscador en sesión de entrenamiento.
+     * Devuelve hasta 30 ejercicios que coincidan con la query y/o grupo muscular.
+     */
+    public function apiSearch(Request $request): JsonResponse
+    {
+        $exercises = Exercise::query()
+            ->when($request->q, fn ($q, $s) =>
+                $q->where('name', 'like', "%{$s}%")
+                  ->orWhere('muscle_group', 'like', "%{$s}%")
+            )
+            ->when($request->muscle_group, fn ($q, $mg) =>
+                $q->where('muscle_group', $mg)
+            )
+            ->select('id', 'name', 'slug', 'muscle_group', 'level', 'thumbnail', 'gif_url', 'description')
+            ->orderBy('name')
+            ->limit(30)
+            ->get();
+
+        return response()->json($exercises);
     }
 
     public function show(Exercise $exercise): Response

@@ -26,10 +26,12 @@ class ChatController extends Controller
     public function send(Request $request, AICoachService $ai): StreamedResponse
     {
         $validated = $request->validate([
-            'message' => ['required', 'string', 'max:2000'],
+            'message'         => ['required', 'string', 'max:2000'],
+            'workout_context' => ['nullable', 'string', 'max:3000'],
         ]);
 
-        $user = $request->user();
+        $user           = $request->user();
+        $workoutContext = $validated['workout_context'] ?? null;
 
         // Persist user message
         $user->chatMessages()->create([
@@ -48,10 +50,10 @@ class ChatController extends Controller
             ->toArray();
 
         // Stream SSE response
-        return response()->stream(function () use ($user, $history, $ai) {
+        return response()->stream(function () use ($user, $history, $ai, $workoutContext) {
             $fullContent = '';
 
-            foreach ($ai->streamChat($user, $history) as $chunk) {
+            foreach ($ai->streamChat($user, $history, $workoutContext) as $chunk) {
                 $fullContent .= $chunk;
                 echo "data: " . json_encode(['text' => $chunk]) . "\n\n";
                 ob_flush();

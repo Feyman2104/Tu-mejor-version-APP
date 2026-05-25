@@ -46,7 +46,7 @@ onUnmounted(() => {
   <Teleport to="body">
     <Transition name="modal">
       <div v-if="open"
-        style="position:fixed;inset:0;z-index:110;display:flex;align-items:flex-end;justify-content:center;"
+        style="position:fixed;inset:0;z-index:110;display:flex;align-items:stretch;justify-content:center;"
         @click.self="emit('close')">
 
         <!-- Backdrop -->
@@ -55,8 +55,8 @@ onUnmounted(() => {
           @click="emit('close')"
         />
 
-        <!-- Sheet -->
-        <div style="position:relative;z-index:1;width:100%;max-width:680px;height:88dvh;background:#0A0A0A;border-radius:24px 24px 0 0;overflow:hidden;display:flex;flex-direction:column;">
+        <!-- Sheet (pantalla completa) -->
+        <div style="position:relative;z-index:1;width:100%;max-width:100%;height:100dvh;background:#0A0A0A;border-radius:0;overflow:hidden;display:flex;flex-direction:column;">
 
           <!-- Handle + Header -->
           <div style="flex-shrink:0;padding:12px 20px 0;">

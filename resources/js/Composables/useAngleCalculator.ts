@@ -23,6 +23,10 @@ export const POSE_LANDMARKS = {
   RIGHT_KNEE: 26,
   LEFT_ANKLE: 27,
   RIGHT_ANKLE: 28,
+  LEFT_HEEL: 29,
+  RIGHT_HEEL: 30,
+  LEFT_FOOT_INDEX: 31,
+  RIGHT_FOOT_INDEX: 32,
 } as const
 
 export function useAngleCalculator() {
@@ -100,6 +104,45 @@ export function useAngleCalculator() {
     return Math.round(deviation * 180)
   }
 
+  /**
+   * Alineación de la línea del cuerpo (plancha): desviación de la cadera respecto
+   * a la línea recta hombro→tobillo. 0° = cuerpo perfectamente recto.
+   * Para detectar cadera caída o elevada en la flexión (vista de perfil).
+   */
+  function bodyLineAlignment(lm: Landmark[], side: 'left' | 'right'): number {
+    const shoulder = side === 'left' ? lm[POSE_LANDMARKS.LEFT_SHOULDER] : lm[POSE_LANDMARKS.RIGHT_SHOULDER]
+    const hip      = side === 'left' ? lm[POSE_LANDMARKS.LEFT_HIP]      : lm[POSE_LANDMARKS.RIGHT_HIP]
+    const ankle    = side === 'left' ? lm[POSE_LANDMARKS.LEFT_ANKLE]    : lm[POSE_LANDMARKS.RIGHT_ANKLE]
+    // Ángulo en la cadera del triángulo hombro–cadera–tobillo; 180° = recto.
+    // Devolvemos la desviación respecto a 180° (cuánto se "rompe" la línea).
+    return Math.abs(180 - angleBetween(shoulder, hip, ankle))
+  }
+
+  /**
+   * Profundidad de sentadilla (medible de frente): posición vertical de la cadera
+   * respecto a la línea cadera→tobillo, escalada ×100. Invariante a la escala/distancia.
+   * ~44 de pie · ~11 en paralelo (muslos horizontales) · negativo por debajo del paralelo.
+   */
+  function squatDepth(lm: Landmark[], side: 'left' | 'right'): number {
+    const hip   = side === 'left' ? lm[POSE_LANDMARKS.LEFT_HIP]   : lm[POSE_LANDMARKS.RIGHT_HIP]
+    const knee  = side === 'left' ? lm[POSE_LANDMARKS.LEFT_KNEE]  : lm[POSE_LANDMARKS.RIGHT_KNEE]
+    const ankle = side === 'left' ? lm[POSE_LANDMARKS.LEFT_ANKLE] : lm[POSE_LANDMARKS.RIGHT_ANKLE]
+    const denom = (ankle.y - hip.y) || 1
+    return Math.round(((knee.y - hip.y) / denom) * 100)
+  }
+
+  /**
+   * Ancho de stance: separación horizontal de tobillos ÷ separación de hombros.
+   * ~1.0 = pies a la anchura de hombros. <0.8 muy juntos, >1.5 muy abiertos.
+   * Medible de forma fiable solo desde vista frontal.
+   */
+  function stanceWidthRatio(lm: Landmark[]): number {
+    const ankleSpan = Math.abs(lm[POSE_LANDMARKS.LEFT_ANKLE].x - lm[POSE_LANDMARKS.RIGHT_ANKLE].x)
+    const shoulderSpan = Math.abs(lm[POSE_LANDMARKS.LEFT_SHOULDER].x - lm[POSE_LANDMARKS.RIGHT_SHOULDER].x)
+    if (shoulderSpan < 0.001) return 1
+    return ankleSpan / shoulderSpan
+  }
+
   /** Selecciona el lado más visible (mayor visibilidad media). */
   function bestSide(lm: Landmark[]): 'left' | 'right' {
     const leftVis =
@@ -120,6 +163,9 @@ export function useAngleCalculator() {
     hipAngle,
     backTilt,
     kneeValgus,
+    bodyLineAlignment,
+    stanceWidthRatio,
+    squatDepth,
     bestSide,
   }
 }

@@ -26,6 +26,10 @@ export interface ExerciseKnowledge {
   common_errors: string[]
   contraindications: ContraIndication[]
   posture_thresholds: ExerciseThreshold[]
+  // Orientación corporal recomendada frente a la cámara para que los errores clave
+  // del ejercicio sean medibles: 'front' (de frente) o 'side' (de perfil).
+  // Si se omite, el analizador asume 'side'.
+  recommended_view?: 'front' | 'side'
   variants: {
     easier: string
     harder: string
@@ -61,16 +65,8 @@ export const EXERCISE_KNOWLEDGE: Record<string, ExerciseKnowledge> = {
       { zone: 'lumbar', phase: 'aguda', recommendation: 'No realizar. Riesgo de compresión discal.' },
       { zone: 'lumbar', phase: 'cronica', recommendation: 'Sentadilla goblet o con caja. Core activado. Sin carga axial alta.' },
     ],
+    recommended_view: 'front',
     posture_thresholds: [
-      {
-        joint: 'knee',
-        angle_min: 80,
-        angle_max: 100,
-        condition: 'bottom_position',
-        feedback_bad: 'Baja más — intenta llegar a 90° en la rodilla',
-        feedback_good: 'Profundidad correcta',
-        severity: 'warning',
-      },
       {
         joint: 'knee_valgus',
         angle_max: 10,
@@ -80,11 +76,20 @@ export const EXERCISE_KNOWLEDGE: Record<string, ExerciseKnowledge> = {
         severity: 'error',
       },
       {
-        joint: 'back',
-        angle_max: 45,
+        joint: 'stance_width',
+        angle_min: 0.75,
+        angle_max: 1.7,
         condition: 'throughout',
-        feedback_bad: 'Pecho arriba — no te inclines tanto hacia adelante',
-        feedback_good: 'Posición de espalda correcta',
+        feedback_bad: 'Ajusta los pies a la anchura de los hombros',
+        feedback_good: 'Ancho de pies correcto',
+        severity: 'warning',
+      },
+      {
+        joint: 'squat_depth',
+        angle_max: 25,
+        condition: 'bottom_position',
+        feedback_bad: 'Baja más — muslos paralelos al suelo',
+        feedback_good: 'Profundidad correcta',
         severity: 'warning',
       },
     ],
@@ -118,11 +123,11 @@ export const EXERCISE_KNOWLEDGE: Record<string, ExerciseKnowledge> = {
       { zone: 'muneca', phase: 'aguda', recommendation: 'Sustituir por press en mancuernas con agarre neutro.' },
       { zone: 'lumbar', phase: 'cronica', recommendation: 'Versión en rodillas. Evitar hiperextensión lumbar.' },
     ],
+    recommended_view: 'side',
     posture_thresholds: [
       {
         joint: 'elbow',
-        angle_min: 85,
-        angle_max: 95,
+        angle_max: 100,
         condition: 'bottom_position',
         feedback_bad: 'Baja más — el pecho debe casi tocar el suelo',
         feedback_good: 'Rango completo correcto',
@@ -130,7 +135,7 @@ export const EXERCISE_KNOWLEDGE: Record<string, ExerciseKnowledge> = {
       },
       {
         joint: 'hip_alignment',
-        angle_max: 10,
+        angle_max: 12,
         condition: 'throughout',
         feedback_bad: 'Activa el core — la cadera no debe caer ni subir',
         feedback_good: 'Cuerpo recto, alineado correctamente',
@@ -213,14 +218,22 @@ export const EXERCISE_KNOWLEDGE: Record<string, ExerciseKnowledge> = {
       { zone: 'rodilla', phase: 'aguda', recommendation: 'No realizar.' },
       { zone: 'rodilla', phase: 'subaguda', recommendation: 'Zancada estática con rango muy parcial.' },
     ],
+    recommended_view: 'side',
     posture_thresholds: [
       {
         joint: 'front_knee',
-        angle_min: 85,
-        angle_max: 100,
+        angle_max: 105,
         condition: 'bottom_position',
         feedback_bad: 'Baja más — la rodilla delantera debe llegar a 90°',
         feedback_good: 'Profundidad de zancada correcta',
+        severity: 'warning',
+      },
+      {
+        joint: 'back',
+        angle_max: 25,
+        condition: 'throughout',
+        feedback_bad: 'Mantén el torso erguido — pecho arriba',
+        feedback_good: 'Torso erguido correcto',
         severity: 'warning',
       },
     ],
@@ -249,6 +262,7 @@ export const EXERCISE_KNOWLEDGE: Record<string, ExerciseKnowledge> = {
     contraindications: [
       { zone: 'lumbar', phase: 'aguda', recommendation: 'No realizar.' },
     ],
+    recommended_view: 'side',
     posture_thresholds: [
       {
         joint: 'hip_extension',
@@ -359,6 +373,7 @@ export const EXERCISE_KNOWLEDGE: Record<string, ExerciseKnowledge> = {
       { zone: 'hombro', phase: 'subaguda', recommendation: 'Press neutro con mancuernas en rango parcial.' },
       { zone: 'lumbar', phase: 'cronica', recommendation: 'Versión sentado con respaldo.' },
     ],
+    recommended_view: 'side',
     posture_thresholds: [
       {
         joint: 'elbow_press',
@@ -366,6 +381,14 @@ export const EXERCISE_KNOWLEDGE: Record<string, ExerciseKnowledge> = {
         condition: 'top_position',
         feedback_bad: 'Extiende los brazos completamente arriba',
         feedback_good: 'Extensión completa en el press',
+        severity: 'warning',
+      },
+      {
+        joint: 'back',
+        angle_max: 20,
+        condition: 'throughout',
+        feedback_bad: 'No te inclines hacia atrás — activa el core y los glúteos',
+        feedback_good: 'Torso estable correcto',
         severity: 'warning',
       },
     ],
@@ -457,7 +480,25 @@ export const EXERCISE_KNOWLEDGE: Record<string, ExerciseKnowledge> = {
     contraindications: [
       { zone: 'muneca', phase: 'aguda', recommendation: 'Agarre neutro (curl martillo).' },
     ],
-    posture_thresholds: [],
+    recommended_view: 'side',
+    posture_thresholds: [
+      {
+        joint: 'elbow',
+        angle_max: 70,
+        condition: 'top_position',
+        feedback_bad: 'Sube más — contrae el bíceps por completo',
+        feedback_good: 'Contracción completa',
+        severity: 'warning',
+      },
+      {
+        joint: 'elbow',
+        angle_min: 150,
+        condition: 'bottom_position',
+        feedback_bad: 'Extiende del todo abajo — rango completo',
+        feedback_good: 'Extensión completa',
+        severity: 'warning',
+      },
+    ],
     variants: {
       easier: 'Curl con banda de resistencia',
       harder: 'Curl predicador para mayor aislamiento',
