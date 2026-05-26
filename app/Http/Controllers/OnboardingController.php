@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\GenerateRoutineJob;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -17,22 +18,45 @@ class OnboardingController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'level'     => ['required', 'in:beginner,intermediate,advanced'],
-            'goal'      => ['required', 'in:fat_loss,muscle_gain,strength,maintain,flexibility,cardio'],
-            'equipment' => ['required', 'array'],
-            'equipment.*' => ['in:none,dumbbells,barbell,pull_up_bar,cables,machines'],
-            'injuries'  => ['nullable', 'array'],
-            'injuries.*' => ['in:knee,back,shoulder,wrist,ankle,neck,hip,none'],
+            'name'                     => ['required', 'string', 'max:255'],
+            'age'                      => ['nullable', 'integer', 'min:10', 'max:100'],
+            'weight_kg'                => ['nullable', 'numeric', 'min:20', 'max:300'],
+            'height_cm'                => ['nullable', 'integer', 'min:100', 'max:250'],
+            'mobility'                 => ['nullable', 'in:good,average,limited'],
+            'level'                    => ['required', 'in:beginner,intermediate,advanced'],
+            'goal'                     => ['required', 'in:fat_loss,muscle_gain,strength,maintain,flexibility,cardio,body_recomposition'],
+            'place'                    => ['required', 'in:home,gym,both'],
+            'equipment'                => ['required', 'array', 'min:1'],
+            'equipment.*'              => ['in:none,dumbbells,barbell,pull_up_bar,cables,machines,kettlebell,bands'],
+            'injuries'                 => ['nullable', 'array'],
+            'injuries.*.zone'          => ['required', 'string', 'in:knee,back,shoulder,wrist,ankle,neck,hip'],
+            'injuries.*.notes'         => ['nullable', 'string', 'max:300'],
+            'days_per_week'            => ['required', 'integer', 'min:1', 'max:7'],
+            'session_duration_minutes' => ['required', 'integer', 'min:15', 'max:180'],
+            'preferred_muscles'        => ['nullable', 'array'],
+            'preferred_muscles.*'      => ['string'],
         ]);
 
         $user = $request->user();
         $user->update([
+            'name'                     => $validated['name'],
+            'age'                      => $validated['age'] ?? null,
+            'weight_kg'                => $validated['weight_kg'] ?? null,
+            'height_cm'                => $validated['height_cm'] ?? null,
+            'mobility'                 => $validated['mobility'] ?? null,
             'level'                    => $validated['level'],
             'goal'                     => $validated['goal'],
+            'place'                    => $validated['place'],
             'equipment'                => $validated['equipment'],
             'injuries'                 => $validated['injuries'] ?? [],
+            'days_per_week'            => $validated['days_per_week'],
+            'session_duration_minutes' => $validated['session_duration_minutes'],
+            'preferred_muscles'        => $validated['preferred_muscles'] ?? [],
             'onboarding_completed_at'  => now(),
         ]);
+
+        // Ejecutar sincrónicamente: la animación frontend cubre el tiempo de espera
+        GenerateRoutineJob::dispatchSync($user);
 
         return redirect()->route('dashboard');
     }

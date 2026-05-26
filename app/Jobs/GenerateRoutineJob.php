@@ -52,29 +52,51 @@ class GenerateRoutineJob implements ShouldQueue
     private function buildPrompt(): string
     {
         $equipment = implode(', ', $this->user->equipment ?? ['bodyweight']);
-        $injuries  = implode(', ', array_filter($this->user->injuries ?? [], fn ($i) => $i !== 'none'));
+
+        // Injuries may be stored as plain strings (old format) or {zone, notes} objects (new)
+        $injuries = collect($this->user->injuries ?? [])
+            ->filter(fn ($i) => is_array($i) ? ($i['zone'] ?? '') !== 'none' : $i !== 'none')
+            ->map(fn ($i) => is_array($i)
+                ? $i['zone'] . (!empty($i['notes']) ? " ({$i['notes']})" : '')
+                : $i)
+            ->implode(', ');
 
         $goal = match ($this->user->goal) {
-            'fat_loss'    => 'pérdida de grasa',
-            'muscle_gain' => 'ganancia muscular',
-            'strength'    => 'fuerza',
-            'maintain'    => 'mantenimiento',
-            'flexibility' => 'flexibilidad',
-            'cardio'      => 'resistencia cardiovascular',
-            default       => 'condición física general',
+            'fat_loss'           => 'pérdida de grasa',
+            'muscle_gain'        => 'ganancia muscular',
+            'strength'           => 'fuerza',
+            'maintain'           => 'mantenimiento',
+            'flexibility'        => 'flexibilidad',
+            'cardio'             => 'resistencia cardiovascular',
+            'body_recomposition' => 'recomposición corporal (ganar músculo y perder grasa simultáneamente)',
+            default              => 'condición física general',
         };
 
-        $notes = $this->notes ? "\nNotas adicionales del usuario: {$this->notes}" : '';
+        $extras = [];
+        if ($this->user->days_per_week)            $extras[] = "Días disponibles: {$this->user->days_per_week} por semana";
+        if ($this->user->session_duration_minutes) $extras[] = "Duración por sesión: {$this->user->session_duration_minutes} minutos";
+        if ($this->user->place) {
+            $placeLabel = match ($this->user->place) { 'home' => 'casa', 'gym' => 'gimnasio', 'both' => 'casa y gimnasio', default => '' };
+            if ($placeLabel) $extras[] = "Lugar: {$placeLabel}";
+        }
+        if (!empty($this->user->preferred_muscles)) {
+            $extras[] = 'Músculos prioritarios: ' . implode(', ', $this->user->preferred_muscles);
+        }
+        if ($this->notes) $extras[] = "Notas: {$this->notes}";
+
+        $extrasText   = $extras ? "\n- " . implode("\n- ", $extras) : '';
+        $daysTarget   = $this->user->days_per_week
+            ? "exactamente {$this->user->days_per_week} días de entrenamiento"
+            : 'entre 3 y 5 días de entrenamiento';
 
         return <<<PROMPT
 Genera una rutina de entrenamiento semanal personalizada en formato JSON para:
 - Nivel: {$this->user->level}
 - Objetivo: {$goal}
 - Equipamiento: {$equipment}
-- Lesiones/limitaciones: {$injuries ?: 'ninguna'}
-{$notes}
+- Lesiones/limitaciones: {$injuries ?: 'ninguna'}{$extrasText}
 
-La rutina debe tener entre 3 y 5 días de entrenamiento por semana.
+La rutina debe tener {$daysTarget} por semana.
 Responde SOLO con JSON válido, sin explicación extra, con esta estructura exacta:
 
 {
@@ -157,13 +179,13 @@ PROMPT;
     private function mappedGoal(): string
     {
         return match ($this->user->goal) {
-            'fat_loss'    => 'fat_loss',
-            'muscle_gain' => 'hypertrophy',
-            'strength'    => 'strength',
-            'cardio',
-            'maintain'    => 'endurance',
-            'flexibility' => 'mobility',
-            default       => 'hypertrophy',
+            'fat_loss'           => 'fat_loss',
+            'muscle_gain',
+            'body_recomposition' => 'hypertrophy',
+            'strength'           => 'strength',
+            'cardio', 'maintain' => 'endurance',
+            'flexibility'        => 'mobility',
+            default              => 'hypertrophy',
         };
     }
 

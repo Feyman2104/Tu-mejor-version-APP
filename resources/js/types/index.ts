@@ -1,20 +1,27 @@
+export interface Injury {
+  zone: 'knee' | 'back' | 'shoulder' | 'wrist' | 'ankle' | 'neck' | 'hip'
+  notes: string
+}
+
 export interface User {
   id: number
   name: string
   email: string
   role: 'student' | 'trainer' | 'admin'
   level: 'beginner' | 'intermediate' | 'advanced' | null
-  goal: 'fat_loss' | 'muscle_gain' | 'strength' | 'maintain' | 'flexibility' | 'cardio' | null
+  goal: 'fat_loss' | 'muscle_gain' | 'strength' | 'maintain' | 'flexibility' | 'cardio' | 'body_recomposition' | null
   equipment: string[] | null
-  injuries: string[] | null
+  injuries: Injury[] | null
   avatar: string | null
   onboarding_completed_at: string | null
-}
-
-export interface Injury {
-  zone: 'lumbar' | 'rodilla' | 'hombro' | 'muneca' | 'cadera'
-  phase: 'aguda' | 'subaguda' | 'cronica' | 'retorno'
-  notes: string
+  age: number | null
+  weight_kg: number | null
+  height_cm: number | null
+  mobility: 'good' | 'average' | 'limited' | null
+  place: 'home' | 'gym' | 'both' | null
+  days_per_week: number | null
+  session_duration_minutes: number | null
+  preferred_muscles: string[] | null
 }
 
 export interface Exercise {
