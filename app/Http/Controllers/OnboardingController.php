@@ -55,8 +55,25 @@ class OnboardingController extends Controller
             'onboarding_completed_at'  => now(),
         ]);
 
-        // Ejecutar sincrónicamente: la animación frontend cubre el tiempo de espera
-        GenerateRoutineJob::dispatchSync($user);
+        // Ejecutar sincrónicamente: la animación frontend cubre el tiempo de espera.
+        // set_time_limit(0) evita que XAMPP/PHP corte la petición si la IA tarda >30s.
+        set_time_limit(0);
+
+        try {
+            GenerateRoutineJob::dispatchSync($user);
+        } catch (\Throwable $e) {
+            // Si la generación falla (timeout de IA, error de red, etc.), el job
+            // ya intentó crear una rutina de fallback internamente. Registramos el
+            // error y redirigimos igualmente — el usuario llega al dashboard con
+            // la rutina básica o con un aviso para generarla manualmente.
+            \Illuminate\Support\Facades\Log::error('Onboarding routine generation failed', [
+                'user_id' => $user->id,
+                'error'   => $e->getMessage(),
+            ]);
+
+            return redirect()->route('dashboard')
+                ->with('info', 'Tu perfil está listo. La generación de rutina tardó más de lo esperado — pulsa "Generar nueva rutina" desde el dashboard para crearla.');
+        }
 
         return redirect()->route('dashboard');
     }

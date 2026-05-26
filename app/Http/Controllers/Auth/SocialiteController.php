@@ -14,6 +14,10 @@ class SocialiteController extends Controller
 
     public function redirectToGoogle()
     {
+        if (! config('services.google.client_id')) {
+            return redirect()->route('login')
+                ->with('error', 'El inicio de sesión con Google no está disponible en este momento. Usa email y contraseña.');
+        }
         return Socialite::driver('google')->redirect();
     }
 
@@ -33,6 +37,10 @@ class SocialiteController extends Controller
 
     public function redirectToFacebook()
     {
+        if (! config('services.facebook.client_id')) {
+            return redirect()->route('login')
+                ->with('error', 'El inicio de sesión con Facebook no está disponible en este momento. Usa email y contraseña.');
+        }
         return Socialite::driver('facebook')->redirect();
     }
 

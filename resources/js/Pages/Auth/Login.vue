@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Link, useForm } from '@inertiajs/vue3'
+import { ref, computed } from 'vue'
+import { Link, useForm, usePage } from '@inertiajs/vue3'
 import GuestLayout from '@/Layouts/GuestLayout.vue'
 
 defineOptions({ layout: GuestLayout })
+
+const page = usePage()
+const flashError = computed(() => page.props.flash?.error ?? null)
 
 const form = useForm({
   email: '',
@@ -56,6 +59,13 @@ function submit() {
         <p style="font-size:13px;color:#9CA3AF;line-height:1.5;margin-bottom:20px;">
           Inicia sesión y continúa tu plan donde lo dejaste.
         </p>
+
+        <!-- Flash error (social login, credenciales incorrectas, etc.) -->
+        <div v-if="flashError"
+          style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:12px 14px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span style="font-size:13px;color:#FCA5A5;line-height:1.4;">{{ flashError }}</span>
+        </div>
 
         <!-- Social login -->
         <div style="margin-bottom:4px;">
@@ -224,6 +234,13 @@ function submit() {
             <p style="font-size:15px;color:#9CA3AF;line-height:1.5;margin-bottom:20px;">
               Inicia sesión y continúa tu plan donde lo dejaste.
             </p>
+
+            <!-- Flash error (social login, credenciales incorrectas, etc.) -->
+            <div v-if="flashError"
+              style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:12px 14px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span style="font-size:15px;color:#FCA5A5;line-height:1.4;">{{ flashError }}</span>
+            </div>
 
             <!-- Social login -->
             <div style="margin-bottom:4px;">
