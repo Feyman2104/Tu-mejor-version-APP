@@ -43,8 +43,8 @@ const stats = [
           </Link>
           <Link :href="route('register')"
             class="font-bold"
-            style="background:#1DF412;color:#000;border-radius:12px;padding:10px 20px;font-size:14px;text-decoration:none;">
-            Comenzar gratis
+            style="color:#1DF412;border:1.5px solid rgba(29,244,18,0.45);border-radius:12px;padding:10px 20px;font-size:14px;text-decoration:none;">
+            Registrarse
           </Link>
         </div>
       </nav>
@@ -66,14 +66,9 @@ const stats = [
           <div class="flex flex-wrap gap-3 mb-10">
             <Link :href="route('register')"
               class="inline-flex items-center gap-2 font-bold"
-              style="background:#1DF412;color:#000;border:none;border-radius:12px;padding:18px 28px;font-size:16px;text-decoration:none;">
+              style="background:transparent;color:#1DF412;border:1.5px solid rgba(29,244,18,0.45);border-radius:12px;padding:18px 28px;font-size:16px;text-decoration:none;">
               Comenzar gratis
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            </Link>
-            <Link :href="route('login')"
-              class="inline-flex items-center gap-2 font-semibold"
-              style="background:#1C1C1C;color:#fff;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:18px 28px;font-size:16px;text-decoration:none;">
-              Ya tengo cuenta
             </Link>
           </div>
           <!-- Trust strip -->
@@ -175,9 +170,78 @@ const stats = [
       </section>
 
       <!-- FOOTER -->
-      <footer class="px-6 md:px-16 py-8 flex flex-col md:flex-row justify-between items-center gap-4" style="border-top:1px solid rgba(255,255,255,0.06);">
-        <span class="font-display font-black uppercase tracking-tight" style="font-size:16px;">Tu Mejor<span style="color:#1DF412;">Versión</span></span>
-        <span style="font-size:13px;color:#6B7280;">© 2026 Tu Mejor Versión · Hecho para estudiantes</span>
+      <footer style="border-top:1px solid rgba(255,255,255,0.06);">
+        <div class="px-6 md:px-16 py-12 grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
+
+          <!-- Brand -->
+          <div class="col-span-2 md:col-span-1">
+            <Link :href="route('landing')" class="font-display font-black uppercase tracking-tight" style="font-size:18px;text-decoration:none;color:#fff;">
+              Tu Mejor<span style="color:#1DF412;">Versión</span>
+            </Link>
+            <p style="font-size:13px;color:#6B7280;line-height:1.6;margin-top:12px;max-width:220px;">
+              Fitness inteligente para estudiantes universitarios. Tu mejor versión, con IA.
+            </p>
+            <!-- Social links -->
+            <div class="flex items-center gap-3" style="margin-top:16px;">
+              <a href="#" aria-label="Instagram"
+                style="width:34px;height:34px;border-radius:8px;background:#161616;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;color:#9CA3AF;text-decoration:none;transition:border-color 0.15s;"
+                onmouseover="this.style.borderColor='rgba(29,244,18,0.4)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+              </a>
+              <a href="#" aria-label="Twitter / X"
+                style="width:34px;height:34px;border-radius:8px;background:#161616;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;color:#9CA3AF;text-decoration:none;"
+                onmouseover="this.style.borderColor='rgba(29,244,18,0.4)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.835L1.254 2.25H8.08l4.259 5.631 5.905-5.631Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+              </a>
+              <a href="#" aria-label="TikTok"
+                style="width:34px;height:34px;border-radius:8px;background:#161616;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;color:#9CA3AF;text-decoration:none;"
+                onmouseover="this.style.borderColor='rgba(29,244,18,0.4)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.77a8.16 8.16 0 0 0 4.77 1.52V6.85a4.85 4.85 0 0 1-1-.16z"/></svg>
+              </a>
+            </div>
+          </div>
+
+          <!-- Producto -->
+          <div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#4B5563;margin-bottom:16px;">Producto</div>
+            <div class="flex flex-col gap-3">
+              <Link :href="route('register')" style="font-size:14px;color:#9CA3AF;text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#9CA3AF'">Comenzar gratis</Link>
+              <Link :href="route('login')" style="font-size:14px;color:#9CA3AF;text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#9CA3AF'">Iniciar sesión</Link>
+              <a href="#" style="font-size:14px;color:#9CA3AF;text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#9CA3AF'">Rutinas IA</a>
+              <a href="#" style="font-size:14px;color:#9CA3AF;text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#9CA3AF'">Análisis de postura</a>
+              <a href="#" style="font-size:14px;color:#9CA3AF;text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#9CA3AF'">Coach virtual</a>
+            </div>
+          </div>
+
+          <!-- Empresa -->
+          <div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#4B5563;margin-bottom:16px;">Empresa</div>
+            <div class="flex flex-col gap-3">
+              <a href="#" style="font-size:14px;color:#9CA3AF;text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#9CA3AF'">Acerca de</a>
+              <a href="#" style="font-size:14px;color:#9CA3AF;text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#9CA3AF'">Blog</a>
+              <a href="#" style="font-size:14px;color:#9CA3AF;text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#9CA3AF'">Universidades</a>
+              <a href="#" style="font-size:14px;color:#9CA3AF;text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#9CA3AF'">Contacto</a>
+            </div>
+          </div>
+
+          <!-- Legal -->
+          <div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#4B5563;margin-bottom:16px;">Legal</div>
+            <div class="flex flex-col gap-3">
+              <a href="#" style="font-size:14px;color:#9CA3AF;text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#9CA3AF'">Términos de uso</a>
+              <a href="#" style="font-size:14px;color:#9CA3AF;text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#9CA3AF'">Política de privacidad</a>
+              <a href="#" style="font-size:14px;color:#9CA3AF;text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#9CA3AF'">Cookies</a>
+              <a href="#" style="font-size:14px;color:#9CA3AF;text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#9CA3AF'">Accesibilidad</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Copyright bar -->
+        <div class="px-6 md:px-16 py-5 flex flex-col md:flex-row justify-between items-center gap-3"
+          style="border-top:1px solid rgba(255,255,255,0.04);">
+          <span style="font-size:12px;color:#4B5563;">© 2026 Tu Mejor Versión. Todos los derechos reservados.</span>
+          <span style="font-size:12px;color:#4B5563;">Hecho con ❤️ para estudiantes universitarios</span>
+        </div>
       </footer>
 
     </div>

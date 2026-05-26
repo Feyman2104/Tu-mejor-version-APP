@@ -5,17 +5,23 @@ import GuestLayout from '@/Layouts/GuestLayout.vue'
 
 defineOptions({ layout: GuestLayout })
 
-const form = useForm({
-  email: '',
-  password: '',
-  remember: false,
-})
+const props = defineProps<{
+  token: string
+  email: string
+}>()
 
 const showPassword = ref(false)
 
+const form = useForm({
+  token: props.token,
+  email: props.email,
+  password: '',
+  password_confirmation: '',
+})
+
 function submit() {
-  form.post(route('login'), {
-    onFinish: () => form.reset('password'),
+  form.post(route('password.update'), {
+    onFinish: () => form.reset('password', 'password_confirmation'),
   })
 }
 </script>
@@ -35,7 +41,7 @@ function submit() {
       <!-- Image header -->
       <div class="relative overflow-hidden flex-shrink-0" style="height:220px;">
         <img
-          src="https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=900&h=1200&fit=crop&q=85"
+          src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=900&h=600&fit=crop&q=85"
           alt=""
           class="w-full h-full object-cover"
         />
@@ -43,75 +49,50 @@ function submit() {
         <div class="absolute bottom-5 left-5">
           <div class="inline-flex items-center gap-2" style="font-size:11px;color:#1DF412;font-weight:600;text-transform:uppercase;letter-spacing:0.12em;">
             <span class="rounded-full" style="width:5px;height:5px;background:#1DF412;display:inline-block;"></span>
-            Iniciar sesión
+            Nueva contraseña
           </div>
         </div>
       </div>
 
-      <!-- Form content -->
+      <!-- Content -->
       <div class="flex-1 px-5 pt-6 pb-4 relative z-10">
         <h2 class="font-display font-bold" style="font-size:24px;line-height:1.15;letter-spacing:-0.02em;margin-bottom:8px;">
-          Bienvenido<br><span style="color:#1DF412;">de vuelta.</span>
+          Nueva<br><span style="color:#1DF412;">contraseña.</span>
         </h2>
-        <p style="font-size:13px;color:#9CA3AF;line-height:1.5;margin-bottom:20px;">
-          Inicia sesión y continúa tu plan donde lo dejaste.
+        <p style="font-size:13px;color:#9CA3AF;line-height:1.5;margin-bottom:24px;">
+          Elige una contraseña nueva y segura para tu cuenta.
         </p>
 
-        <!-- Social login -->
-        <div style="margin-bottom:4px;">
-          <div class="flex gap-2">
-            <a href="/auth/google"
-              class="flex-1 flex items-center justify-center gap-2 font-semibold"
-              style="background:#161616;border:1.5px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px 10px;font-size:13px;color:#fff;text-decoration:none;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-              Google
-            </a>
-            <a href="/auth/facebook"
-              class="flex-1 flex items-center justify-center gap-2 font-semibold"
-              style="background:#161616;border:1.5px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px 10px;font-size:13px;color:#fff;text-decoration:none;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-              Facebook
-            </a>
-          </div>
-          <div class="flex items-center gap-3" style="margin-top:14px;margin-bottom:18px;">
-            <div class="flex-1" style="height:1px;background:rgba(255,255,255,0.06);"></div>
-            <span style="font-size:11px;color:#4B5563;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">o con email</span>
-            <div class="flex-1" style="height:1px;background:rgba(255,255,255,0.06);"></div>
-          </div>
-        </div>
-
         <form @submit.prevent="submit" class="flex flex-col gap-3">
-          <!-- Email -->
+          <!-- Email (readonly) -->
           <div>
             <div style="font-size:11px;color:#9CA3AF;margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Email</div>
-            <div class="flex items-center transition-all" style="background:#161616;border:1.5px solid;border-color:rgba(255,255,255,0.06);border-radius:14px;padding:4px;" :style="form.errors.email ? 'border-color:#EF4444' : ''">
-              <div style="padding-left:14px;color:#9CA3AF;display:flex;">
+            <div class="flex items-center" style="background:#0D0D0D;border:1.5px solid rgba(255,255,255,0.04);border-radius:14px;padding:4px;">
+              <div style="padding-left:14px;color:#4B5563;display:flex;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
               </div>
               <input
                 v-model="form.email"
                 type="email"
-                placeholder="tu@correo.edu.co"
-                autocomplete="email"
+                readonly
                 class="flex-1 bg-transparent border-none outline-none"
-                style="padding:14px 16px;color:#fff;font-size:15px;font-weight:500;letter-spacing:-0.01em;min-width:0;"
+                style="padding:14px 16px;color:#4B5563;font-size:15px;font-weight:500;letter-spacing:-0.01em;min-width:0;"
               />
             </div>
-            <p v-if="form.errors.email" style="font-size:12px;color:#EF4444;margin-top:6px;">{{ form.errors.email }}</p>
           </div>
 
-          <!-- Password -->
+          <!-- New password -->
           <div>
-            <div style="font-size:11px;color:#9CA3AF;margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Contraseña</div>
-            <div class="flex items-center transition-all" style="background:#161616;border:1.5px solid;border-color:rgba(255,255,255,0.06);border-radius:14px;padding:4px;" :style="form.errors.password ? 'border-color:#EF4444' : ''">
+            <div style="font-size:11px;color:#9CA3AF;margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Nueva contraseña</div>
+            <div class="flex items-center" style="background:#161616;border:1.5px solid rgba(255,255,255,0.06);border-radius:14px;padding:4px;" :style="form.errors.password ? 'border-color:#EF4444;' : ''">
               <div style="padding-left:14px;color:#9CA3AF;display:flex;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               </div>
               <input
                 v-model="form.password"
                 :type="showPassword ? 'text' : 'password'"
-                placeholder="••••••••"
-                autocomplete="current-password"
+                placeholder="Mínimo 8 caracteres"
+                autocomplete="new-password"
                 class="flex-1 bg-transparent border-none outline-none"
                 style="padding:14px 16px;color:#fff;font-size:15px;font-weight:500;letter-spacing:-0.01em;min-width:0;"
               />
@@ -123,22 +104,23 @@ function submit() {
             <p v-if="form.errors.password" style="font-size:12px;color:#EF4444;margin-top:6px;">{{ form.errors.password }}</p>
           </div>
 
-          <!-- Remember + forgot -->
-          <div class="flex justify-between items-center" style="margin-top:2px;">
-            <label class="flex items-center gap-2 cursor-pointer" style="font-size:13px;color:#9CA3AF;">
-              <input type="checkbox" v-model="form.remember" class="hidden" />
-              <span
-                class="flex items-center justify-center flex-shrink-0"
-                style="width:16px;height:16px;border-radius:4px;cursor:pointer;transition:all 0.15s;"
-                :style="form.remember ? 'background:#1DF412;border:1.5px solid #1DF412;' : 'background:transparent;border:1.5px solid rgba(255,255,255,0.2);'"
-              >
-                <svg v-if="form.remember" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
-              Recordarme
-            </label>
-            <Link :href="route('password.request')" style="font-size:12px;color:#9CA3AF;text-decoration:none;" onmouseover="this.style.color='#1DF412'" onmouseout="this.style.color='#9CA3AF'">
-              ¿Olvidaste tu contraseña?
-            </Link>
+          <!-- Confirm password -->
+          <div>
+            <div style="font-size:11px;color:#9CA3AF;margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Confirmar contraseña</div>
+            <div class="flex items-center" style="background:#161616;border:1.5px solid rgba(255,255,255,0.06);border-radius:14px;padding:4px;" :style="form.errors.password_confirmation ? 'border-color:#EF4444;' : ''">
+              <div style="padding-left:14px;color:#9CA3AF;display:flex;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </div>
+              <input
+                v-model="form.password_confirmation"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="Repite tu contraseña"
+                autocomplete="new-password"
+                class="flex-1 bg-transparent border-none outline-none"
+                style="padding:14px 16px;color:#fff;font-size:15px;font-weight:500;letter-spacing:-0.01em;min-width:0;"
+              />
+            </div>
+            <p v-if="form.errors.password_confirmation" style="font-size:12px;color:#EF4444;margin-top:6px;">{{ form.errors.password_confirmation }}</p>
           </div>
         </form>
       </div>
@@ -152,12 +134,11 @@ function submit() {
           style="background:#1DF412;color:#000;border:none;border-radius:12px;padding:16px 24px;font-size:16px;cursor:pointer;letter-spacing:-0.01em;"
           :style="form.processing ? 'opacity:0.6;cursor:not-allowed;' : ''"
         >
-          {{ form.processing ? 'Iniciando sesión...' : 'Iniciar sesión' }}
+          {{ form.processing ? 'Guardando...' : 'Guardar contraseña' }}
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
         </button>
         <div class="text-center mt-4" style="font-size:13px;color:#9CA3AF;">
-          ¿No tienes cuenta?
-          <Link :href="route('register')" style="color:#1DF412;font-weight:700;text-decoration:none;margin-left:4px;">Regístrate</Link>
+          <Link :href="route('login')" style="color:#1DF412;font-weight:700;text-decoration:none;">Volver al inicio de sesión</Link>
         </div>
       </div>
     </div>
@@ -168,35 +149,32 @@ function submit() {
       <!-- Left panel (image) -->
       <div class="relative overflow-hidden flex-shrink-0" style="width:42%;">
         <img
-          src="https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=900&h=1200&fit=crop&q=85"
+          src="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=900&h=1200&fit=crop&q=85"
           alt=""
           class="w-full h-full object-cover"
           style="opacity:0.7;"
         />
         <div class="absolute inset-0" style="background:linear-gradient(180deg,rgba(0,0,0,0.6) 0%,rgba(0,0,0,0.4) 40%,rgba(0,0,0,0.85) 100%);"></div>
 
-        <!-- Logo text -->
         <div class="absolute" style="top:48px;left:48px;">
           <span class="font-display font-black text-2xl uppercase text-white tracking-tight">
             Tu Mejor<br><span style="color:#1DF412;">Versión</span>
           </span>
         </div>
 
-        <!-- Microcopy center -->
         <div class="absolute" style="top:50%;left:48px;right:48px;transform:translateY(-50%);">
           <div class="flex items-center gap-2" style="font-size:12px;color:#1DF412;font-weight:600;text-transform:uppercase;letter-spacing:0.15em;margin-bottom:20px;">
             <span class="rounded-full" style="width:6px;height:6px;background:#1DF412;display:inline-block;"></span>
-            Iniciar sesión
+            Nueva contraseña
           </div>
           <h3 class="font-display font-bold" style="font-size:36px;line-height:1.15;letter-spacing:-0.025em;color:#fff;margin-bottom:20px;text-shadow:0 2px 12px rgba(0,0,0,0.5);">
-            Bienvenido de vuelta.
+            Crea una contraseña<br>segura.
           </h3>
           <p style="font-size:15px;color:rgba(255,255,255,0.7);line-height:1.6;max-width:380px;text-shadow:0 1px 4px rgba(0,0,0,0.5);">
-            Continúa donde lo dejaste. Tu rutina, tu progreso y tu coach te están esperando.
+            Elige una contraseña nueva. Usa al menos 8 caracteres con letras y números.
           </p>
         </div>
 
-        <!-- Bottom decoration -->
         <div class="absolute flex justify-between" style="bottom:48px;left:48px;right:48px;font-size:12px;color:rgba(255,255,255,0.5);">
           <span>Tu Mejor Versión · 2026</span>
           <span>v1.0.0</span>
@@ -208,10 +186,10 @@ function submit() {
 
         <!-- Top bar -->
         <div class="flex justify-end items-center" style="padding:32px 64px;">
-          <div style="font-size:13px;color:#9CA3AF;">
-            ¿No tienes cuenta?
-            <Link :href="route('register')" style="color:#1DF412;font-weight:700;text-decoration:none;margin-left:4px;">Regístrate</Link>
-          </div>
+          <Link :href="route('login')" class="flex items-center gap-2" style="font-size:13px;color:#9CA3AF;text-decoration:none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Volver al inicio de sesión
+          </Link>
         </div>
 
         <!-- Form centered -->
@@ -219,58 +197,33 @@ function submit() {
           <div style="width:100%;max-width:440px;">
 
             <h2 class="font-display font-bold" style="font-size:36px;line-height:1.15;letter-spacing:-0.02em;margin-bottom:8px;">
-              Bienvenido<br><span style="color:#1DF412;">de vuelta.</span>
+              Nueva<br><span style="color:#1DF412;">contraseña.</span>
             </h2>
-            <p style="font-size:15px;color:#9CA3AF;line-height:1.5;margin-bottom:20px;">
-              Inicia sesión y continúa tu plan donde lo dejaste.
+            <p style="font-size:15px;color:#9CA3AF;line-height:1.5;margin-bottom:24px;">
+              Elige una contraseña nueva y segura para tu cuenta.
             </p>
 
-            <!-- Social login -->
-            <div style="margin-bottom:4px;">
-              <div class="flex gap-3">
-                <a href="/auth/google"
-                  class="flex-1 flex items-center justify-center gap-2 font-semibold"
-                  style="background:#161616;border:1.5px solid rgba(255,255,255,0.08);border-radius:12px;padding:13px 16px;font-size:14px;color:#fff;text-decoration:none;">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-                  Continuar con Google
-                </a>
-                <a href="/auth/facebook"
-                  class="flex-1 flex items-center justify-center gap-2 font-semibold"
-                  style="background:#161616;border:1.5px solid rgba(255,255,255,0.08);border-radius:12px;padding:13px 16px;font-size:14px;color:#fff;text-decoration:none;">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                  Continuar con Facebook
-                </a>
-              </div>
-              <div class="flex items-center gap-3" style="margin-top:16px;margin-bottom:20px;">
-                <div class="flex-1" style="height:1px;background:rgba(255,255,255,0.06);"></div>
-                <span style="font-size:11px;color:#4B5563;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">o continúa con email</span>
-                <div class="flex-1" style="height:1px;background:rgba(255,255,255,0.06);"></div>
-              </div>
-            </div>
-
-            <form @submit.prevent="submit" class="flex flex-col gap-3">
-              <!-- Email -->
+            <form @submit.prevent="submit" class="flex flex-col gap-4">
+              <!-- Email (readonly) -->
               <div>
                 <div style="font-size:11px;color:#9CA3AF;margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Email</div>
-                <div class="flex items-center" style="background:#161616;border:1.5px solid rgba(255,255,255,0.06);border-radius:14px;padding:4px;" :style="form.errors.email ? 'border-color:#EF4444;' : ''">
-                  <div style="padding-left:14px;color:#9CA3AF;display:flex;">
+                <div class="flex items-center" style="background:#0D0D0D;border:1.5px solid rgba(255,255,255,0.04);border-radius:14px;padding:4px;">
+                  <div style="padding-left:14px;color:#4B5563;display:flex;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                   </div>
                   <input
                     v-model="form.email"
                     type="email"
-                    placeholder="tu@correo.edu.co"
-                    autocomplete="email"
+                    readonly
                     class="flex-1 bg-transparent border-none outline-none"
-                    style="padding:14px 16px;color:#fff;font-size:15px;font-weight:500;letter-spacing:-0.01em;min-width:0;"
+                    style="padding:14px 16px;color:#4B5563;font-size:15px;font-weight:500;letter-spacing:-0.01em;min-width:0;"
                   />
                 </div>
-                <p v-if="form.errors.email" style="font-size:12px;color:#EF4444;margin-top:6px;">{{ form.errors.email }}</p>
               </div>
 
-              <!-- Password -->
+              <!-- New password -->
               <div>
-                <div style="font-size:11px;color:#9CA3AF;margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Contraseña</div>
+                <div style="font-size:11px;color:#9CA3AF;margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Nueva contraseña</div>
                 <div class="flex items-center" style="background:#161616;border:1.5px solid rgba(255,255,255,0.06);border-radius:14px;padding:4px;" :style="form.errors.password ? 'border-color:#EF4444;' : ''">
                   <div style="padding-left:14px;color:#9CA3AF;display:flex;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -278,8 +231,8 @@ function submit() {
                   <input
                     v-model="form.password"
                     :type="showPassword ? 'text' : 'password'"
-                    placeholder="••••••••"
-                    autocomplete="current-password"
+                    placeholder="Mínimo 8 caracteres"
+                    autocomplete="new-password"
                     class="flex-1 bg-transparent border-none outline-none"
                     style="padding:14px 16px;color:#fff;font-size:15px;font-weight:500;letter-spacing:-0.01em;min-width:0;"
                   />
@@ -291,25 +244,25 @@ function submit() {
                 <p v-if="form.errors.password" style="font-size:12px;color:#EF4444;margin-top:6px;">{{ form.errors.password }}</p>
               </div>
 
-              <!-- Remember -->
-              <div class="flex justify-between items-center" style="margin-top:2px;margin-bottom:8px;">
-                <label class="flex items-center gap-2 cursor-pointer" style="font-size:13px;color:#9CA3AF;">
-                  <input type="checkbox" v-model="form.remember" class="hidden" />
-                  <span
-                    class="flex items-center justify-center flex-shrink-0"
-                    style="width:16px;height:16px;border-radius:4px;cursor:pointer;transition:all 0.15s;"
-                    :style="form.remember ? 'background:#1DF412;border:1.5px solid #1DF412;' : 'background:transparent;border:1.5px solid rgba(255,255,255,0.2);'"
-                  >
-                    <svg v-if="form.remember" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  </span>
-                  Recordarme
-                </label>
-                <Link :href="route('password.request')" style="font-size:13px;color:#9CA3AF;text-decoration:none;" onmouseover="this.style.color='#1DF412'" onmouseout="this.style.color='#9CA3AF'">
-                  ¿Olvidaste tu contraseña?
-                </Link>
+              <!-- Confirm password -->
+              <div>
+                <div style="font-size:11px;color:#9CA3AF;margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Confirmar contraseña</div>
+                <div class="flex items-center" style="background:#161616;border:1.5px solid rgba(255,255,255,0.06);border-radius:14px;padding:4px;" :style="form.errors.password_confirmation ? 'border-color:#EF4444;' : ''">
+                  <div style="padding-left:14px;color:#9CA3AF;display:flex;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  </div>
+                  <input
+                    v-model="form.password_confirmation"
+                    :type="showPassword ? 'text' : 'password'"
+                    placeholder="Repite tu contraseña"
+                    autocomplete="new-password"
+                    class="flex-1 bg-transparent border-none outline-none"
+                    style="padding:14px 16px;color:#fff;font-size:15px;font-weight:500;letter-spacing:-0.01em;min-width:0;"
+                  />
+                </div>
+                <p v-if="form.errors.password_confirmation" style="font-size:12px;color:#EF4444;margin-top:6px;">{{ form.errors.password_confirmation }}</p>
               </div>
 
-              <!-- Submit -->
               <button
                 type="submit"
                 :disabled="form.processing"
@@ -317,7 +270,7 @@ function submit() {
                 style="background:#1DF412;color:#000;border:none;border-radius:12px;padding:16px 24px;font-size:16px;cursor:pointer;letter-spacing:-0.01em;"
                 :style="form.processing ? 'opacity:0.6;cursor:not-allowed;' : ''"
               >
-                {{ form.processing ? 'Iniciando sesión...' : 'Iniciar sesión' }}
+                {{ form.processing ? 'Guardando...' : 'Guardar nueva contraseña' }}
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
               </button>
             </form>
