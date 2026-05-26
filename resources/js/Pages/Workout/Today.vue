@@ -139,11 +139,12 @@ function deleteSetFromPicker(): void {
 
 function onDocKeyDown(e: KeyboardEvent): void {
   if (e.key === 'Escape') {
-    activePicker.value  = null
-    restPickerRe.value  = null
-    dropDialog.value    = null
-    activeMenu.value    = null
-    linkingSource.value = null
+    activePicker.value    = null
+    restPickerRe.value    = null
+    dropDialog.value      = null
+    activeMenu.value      = null
+    linkingSource.value   = null
+    deleteConfirmRe.value = null
   }
 }
 
@@ -239,6 +240,28 @@ const activeMenu  = ref<number | null>(null)
 const menuCoords  = ref({ x: 0, y: 0 })
 const reorderMode = ref(false)
 
+// Colapsa las tarjetas mientras se arrastra para que el reordenamiento funcione
+// aunque la tabla de series esté abierta (un card alto rompe el drag de SortableJS).
+const collapsedForDrag = ref(false)
+let pressTimer: ReturnType<typeof setTimeout> | null = null
+
+function startDragPress(): void {
+  if (pressTimer) clearTimeout(pressTimer)
+  // Colapsa justo antes de que SortableJS inicie el drag (su delay es 300 ms),
+  // así el clon "fantasma" se genera ya en tamaño compacto.
+  pressTimer = setTimeout(() => { collapsedForDrag.value = true }, 250)
+}
+
+function endDragPress(): void {
+  if (pressTimer) { clearTimeout(pressTimer); pressTimer = null }
+  collapsedForDrag.value = false
+}
+
+function isExpanded(re: RoutineExercise): boolean {
+  if (collapsedForDrag.value || reorderMode.value) return false
+  return !!exerciseSets[re.id] && (exerciseStatus(re) !== 'pending' || re.id === activeReId.value)
+}
+
 function toggleMenu(reId: number, e: MouseEvent): void {
   e.stopPropagation()
   if (activeMenu.value === reId) { activeMenu.value = null; return }
@@ -301,6 +324,38 @@ function removeFromSuperset(reId: number): void {
   const group = findSupersetGroup(reId)
   if (!group) return
   group.exerciseIds.forEach(id => { delete supersetGroups[id] })
+}
+
+// ─── Eliminar ejercicio ─────────────────────────────────────────────────────────
+const deleteConfirmRe = ref<RoutineExercise | null>(null)
+
+function askDeleteExercise(reId: number): void {
+  deleteConfirmRe.value = allExercises.value.find(e => e.id === reId) ?? null
+  activeMenu.value = null
+}
+
+function confirmDeleteExercise(): void {
+  const re = deleteConfirmRe.value
+  if (!re) return
+  if (supersetGroups[re.id]) removeFromSuperset(re.id)
+  delete exerciseSets[re.id]
+  if (activeReId.value === re.id) activeReId.value = null
+
+  if (re.id < 0) {
+    // Ejercicio extra de la sesión: solo local
+    extraExercises.value = extraExercises.value.filter(e => e.id !== re.id)
+  } else {
+    // Ejercicio de la rutina: quitar de la vista y desactivar en BD (reversible)
+    if (selectedDay.value) {
+      selectedDay.value.exercises = selectedDay.value.exercises.filter(e => e.id !== re.id)
+    }
+    fetch(route('routine.exercises.deactivate', { routineExercise: re.id }), {
+      method:      'PATCH',
+      credentials: 'same-origin',
+      headers:     { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
+    }).catch(() => { /* UI optimista, igual que saveExerciseOrder */ })
+  }
+  deleteConfirmRe.value = null
 }
 
 // ─── Notas por ejercicio (solo sesión) ───────────────────────────────────────
@@ -374,7 +429,11 @@ function initSortable(): void {
       animation:         150,
       delay:             300,          // long-press para iniciar drag
       delayOnTouchOnly:  true,         // solo en móvil
+      onStart() {
+        collapsedForDrag.value = true
+      },
       onEnd(evt) {
+        collapsedForDrag.value = false
         const oldIdx = evt.oldIndex
         const newIdx = evt.newIndex
         if (oldIdx === undefined || newIdx === undefined || oldIdx === newIdx) return
@@ -443,15 +502,22 @@ onMounted(() => {
   initSortable()
   document.addEventListener('keydown', onDocKeyDown)
   document.addEventListener('click', onDocClickCapture, true)
+  document.addEventListener('pointerup', endDragPress)
+  document.addEventListener('touchend', endDragPress)
+  document.addEventListener('pointercancel', endDragPress)
 })
 
 onUnmounted(() => {
   if (restInterval)    clearInterval(restInterval)
   if (elapsedInterval) clearInterval(elapsedInterval)
+  if (pressTimer)      clearTimeout(pressTimer)
   if (sortableInstance) { sortableInstance.destroy(); sortableInstance = null }
   workoutSession.clear()
   document.removeEventListener('keydown', onDocKeyDown)
   document.removeEventListener('click', onDocClickCapture, true)
+  document.removeEventListener('pointerup', endDragPress)
+  document.removeEventListener('touchend', endDragPress)
+  document.removeEventListener('pointercancel', endDragPress)
 })
 
 function setFirstActiveExercise() {
@@ -922,6 +988,7 @@ const MOODS = [
 
             <!-- Handle de drag (siempre visible; mantén pulsado para arrastrar) -->
             <div class="drag-handle"
+              @pointerdown="startDragPress"
               style="display:flex;align-items:center;justify-content:center;padding:6px 0 0;cursor:grab;touch-action:none;"
               :style="reorderMode ? 'color:#3B82F6;' : 'color:#2A2A2A;'">
               <svg width="18" height="10" viewBox="0 0 18 10" fill="currentColor">
@@ -1020,7 +1087,7 @@ const MOODS = [
             </div>
 
             <!-- Tabla de series (solo si el ejercicio está activo o tiene series hechas) -->
-            <div v-if="exerciseSets[re.id] && (exerciseStatus(re) !== 'pending' || re.id === activeReId)"
+            <div v-if="isExpanded(re)"
               style="padding:0 14px;">
 
               <!-- Header columnas -->
@@ -1126,7 +1193,7 @@ const MOODS = [
             </div>
 
             <!-- Notas del ejercicio (sesión + nota fija de rutina) -->
-            <div v-if="exerciseStatus(re) !== 'pending' || exerciseNotes[re.id] !== undefined"
+            <div v-if="!collapsedForDrag && !reorderMode && (exerciseStatus(re) !== 'pending' || exerciseNotes[re.id] !== undefined)"
               style="padding:0 16px 12px;">
               <div v-if="re.notes" style="font-size:12px;color:#4B5563;line-height:1.5;margin-bottom:6px;">
                 💡 {{ re.notes }}
@@ -1139,7 +1206,7 @@ const MOODS = [
               />
             </div>
             <!-- Botón para abrir notas cuando está pendiente y no hay nota aún -->
-            <button v-if="exerciseStatus(re) === 'pending' && exerciseNotes[re.id] === undefined"
+            <button v-if="!collapsedForDrag && !reorderMode && exerciseStatus(re) === 'pending' && exerciseNotes[re.id] === undefined"
               @click.stop="exerciseNotes[re.id] = ''"
               style="background:none;border:none;color:#374151;font-size:11px;cursor:pointer;padding:0 16px 10px;display:block;">
               + Nota
@@ -1355,6 +1422,40 @@ const MOODS = [
         onmouseover="this.style.background='rgba(239,68,68,0.08)'" onmouseout="this.style.background='transparent'">
         <span style="font-size:16px;">✂️</span>
         <span style="font-size:13px;font-weight:600;color:#EF4444;">Desvincular superserie</span>
+      </div>
+      <!-- Separador + Eliminar ejercicio -->
+      <div style="height:1px;background:rgba(255,255,255,0.06);margin:4px 6px;"/>
+      <div @click="askDeleteExercise(activeMenu!)"
+        style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;transition:background 0.1s;"
+        onmouseover="this.style.background='rgba(239,68,68,0.08)'" onmouseout="this.style.background='transparent'">
+        <span style="font-size:16px;">🗑</span>
+        <span style="font-size:13px;font-weight:600;color:#EF4444;">Eliminar ejercicio</span>
+      </div>
+    </div>
+  </Teleport>
+
+  <!-- Confirmar eliminar ejercicio -->
+  <Teleport to="body">
+    <div v-if="deleteConfirmRe" style="position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:400;display:flex;align-items:center;justify-content:center;padding:20px;">
+      <div style="background:#161616;border:1px solid rgba(255,255,255,0.1);border-radius:18px;padding:24px;width:100%;max-width:320px;text-align:center;">
+        <div style="width:56px;height:56px;border-radius:14px;background:rgba(239,68,68,0.12);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:24px;">
+          🗑
+        </div>
+        <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:6px;">¿Eliminar ejercicio?</div>
+        <div style="font-size:13px;color:#9CA3AF;margin-bottom:20px;line-height:1.6;">
+          <strong style="color:#fff;">{{ deleteConfirmRe.exercise?.name }}</strong> se quitará de tu rutina.
+          <span v-if="deleteConfirmRe.id > 0" style="color:#6B7280;display:block;margin-top:4px;">Tus datos guardados se conservan por si quieres volver a añadirlo.</span>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button @click="deleteConfirmRe = null"
+            style="flex:1;padding:13px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;background:transparent;color:#6B7280;cursor:pointer;font-size:14px;font-weight:600;">
+            Cancelar
+          </button>
+          <button @click="confirmDeleteExercise()"
+            style="flex:1;padding:13px;background:#EF4444;border:none;border-radius:10px;color:#fff;font-weight:700;cursor:pointer;font-size:14px;">
+            Eliminar
+          </button>
+        </div>
       </div>
     </div>
   </Teleport>

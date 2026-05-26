@@ -28,4 +28,20 @@ class RoutineExerciseController extends Controller
 
         return response()->json(['ok' => true]);
     }
+
+    /**
+     * Soft-deactivate a routine exercise so it stops appearing in the user's
+     * routine while preserving the row and its logged sets for future reuse.
+     */
+    public function deactivate(Request $request, RoutineExercise $routineExercise): JsonResponse
+    {
+        abort_unless(
+            $routineExercise->routineDay->routine->user_id === $request->user()->id,
+            403
+        );
+
+        $routineExercise->update(['is_active' => false]);
+
+        return response()->json(['ok' => true]);
+    }
 }

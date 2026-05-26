@@ -6,10 +6,13 @@ import type { Exercise } from '@/types'
 const props = defineProps<{
   exercise: Exercise | null
   restSeconds?: number | null
+  addable?: boolean
+  selected?: boolean
 }>()
 
 const emit = defineEmits<{
   close: []
+  add: []
 }>()
 
 const page = usePage()
@@ -17,7 +20,12 @@ const userGoal = computed(() => page.props.auth?.user?.goal ?? null)
 
 // ─── Cerrar con Escape ────────────────────────────────────────────────────────
 function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape') emit('close')
+  // Solo actuamos cuando el modal está abierto; al estar anidado dentro del
+  // buscador, frenamos la propagación para que su Escape no cierre también el buscador.
+  if (e.key === 'Escape' && props.exercise) {
+    e.stopImmediatePropagation()
+    emit('close')
+  }
 }
 
 // Bloquear scroll SOLO cuando el modal está abierto
@@ -37,14 +45,15 @@ onUnmounted(() => {
 
 // ─── Recomendación según objetivo ─────────────────────────────────────────────
 const GOAL_RECS: Record<string, string> = {
-  fat_loss:    'Reduce el descanso a 30-45s entre series y mantén un ritmo constante para maximizar la quema calórica.',
-  hypertrophy: 'Trabaja en el rango de 8-12 reps con RPE 7-9. Siente el músculo objetivo en cada repetición.',
-  muscle_gain: 'Trabaja en el rango de 8-12 reps con RPE 7-9. Siente el músculo objetivo en cada repetición.',
-  strength:    'Usa 3-5 reps con el 80-90% de tu máximo. Descansa 3-5 min para recuperar completamente el sistema neuromuscular.',
-  endurance:   'Mantén series largas (15-20+ reps) con descansos cortos (30-45s) para desarrollar resistencia muscular.',
-  maintain:    'Mantén cargas moderadas y técnica perfecta. 3 series de 10-12 reps es suficiente para conservar la masa.',
-  flexibility: 'Prioriza el rango de movimiento completo sobre el peso levantado. Nunca sacrifiques técnica por carga.',
-  cardio:      'Mantén la respiración rítmica y reduce el descanso entre series para elevar la frecuencia cardíaca.',
+  fat_loss:            'Reduce el descanso a 30-45s entre series y mantén un ritmo constante para maximizar la quema calórica.',
+  hypertrophy:         'Trabaja en el rango de 8-12 reps con RPE 7-9. Siente el músculo objetivo en cada repetición.',
+  muscle_gain:         'Trabaja en el rango de 8-12 reps con RPE 7-9. Siente el músculo objetivo en cada repetición.',
+  body_recomposition:  'Alterna días de déficit calórico con entrenamientos en rango hipertrófico (8-12 reps, RPE 7-8). La consistencia semanal es clave.',
+  strength:            'Usa 3-5 reps con el 80-90% de tu máximo. Descansa 3-5 min para recuperar completamente el sistema neuromuscular.',
+  endurance:           'Mantén series largas (15-20+ reps) con descansos cortos (30-45s) para desarrollar resistencia muscular.',
+  maintain:            'Mantén cargas moderadas y técnica perfecta. 3 series de 10-12 reps es suficiente para conservar la masa.',
+  flexibility:         'Prioriza el rango de movimiento completo sobre el peso levantado. Nunca sacrifiques técnica por carga.',
+  cardio:              'Mantén la respiración rítmica y reduce el descanso entre series para elevar la frecuencia cardíaca.',
 }
 
 const goalRecommendation = computed(() => {
@@ -53,14 +62,15 @@ const goalRecommendation = computed(() => {
 })
 
 const GOAL_LABELS: Record<string, string> = {
-  fat_loss:    'Pérdida de grasa',
-  hypertrophy: 'Hipertrofia',
-  muscle_gain: 'Ganar músculo',
-  strength:    'Fuerza',
-  endurance:   'Resistencia',
-  maintain:    'Mantenimiento',
-  flexibility: 'Flexibilidad',
-  cardio:      'Cardio',
+  fat_loss:           'Pérdida de grasa',
+  hypertrophy:        'Hipertrofia',
+  muscle_gain:        'Ganar músculo',
+  body_recomposition: 'Recomposición corporal',
+  strength:           'Fuerza',
+  endurance:          'Resistencia',
+  maintain:           'Mantenimiento',
+  flexibility:        'Flexibilidad',
+  cardio:             'Cardio',
 }
 
 const goalLabel = computed(() =>
@@ -91,7 +101,7 @@ const commonErrors = computed(() => {
   <Teleport to="body">
     <Transition name="modal">
       <div v-if="exercise"
-        style="position:fixed;inset:0;z-index:100;display:flex;align-items:flex-end;justify-content:center;"
+        style="position:fixed;inset:0;z-index:260;display:flex;align-items:flex-end;justify-content:center;"
         @click.self="emit('close')">
 
         <!-- Backdrop -->
@@ -210,6 +220,21 @@ const commonErrors = computed(() => {
               </div>
 
             </div>
+          </div>
+
+          <!-- Barra de acción — solo cuando se abre desde el buscador -->
+          <div v-if="addable"
+            style="flex-shrink:0;padding:12px 16px;padding-bottom:max(16px,env(safe-area-inset-bottom,16px));background:#0A0A0A;border-top:1px solid rgba(255,255,255,0.06);">
+            <button @click="emit('add')"
+              class="w-full flex items-center justify-center gap-2 font-bold"
+              style="border-radius:14px;padding:15px;font-size:15px;cursor:pointer;transition:all 0.15s;"
+              :style="selected
+                ? 'background:transparent;color:#1DF412;border:1.5px solid rgba(29,244,18,0.4);'
+                : 'background:#1DF412;color:#000;border:none;box-shadow:0 4px 20px rgba(29,244,18,0.25);'">
+              <svg v-if="selected" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              {{ selected ? 'Quitar de la selección' : 'Agregar a la rutina' }}
+            </button>
           </div>
         </div>
       </div>

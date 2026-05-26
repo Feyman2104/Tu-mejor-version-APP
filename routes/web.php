@@ -58,6 +58,7 @@ Route::middleware(['auth'])->group(function () {
     // Rutinas
     Route::post('/routines/generate', [WorkoutController::class, 'generateRoutine'])->name('routines.generate');
     Route::patch('/routine-exercises/reorder', [RoutineExerciseController::class, 'reorder'])->name('routine.exercises.reorder');
+    Route::patch('/routine-exercises/{routineExercise}/deactivate', [RoutineExerciseController::class, 'deactivate'])->name('routine.exercises.deactivate');
 
     // Postura
     Route::get('/posture', [PostureController::class, 'index'])->name('posture.index');

@@ -19,7 +19,11 @@ class WorkoutController extends Controller
 
         $routine = $user->routines()
             ->where('is_active', true)
-            ->with(['days' => fn ($q) => $q->orderBy('day_number'), 'days.exercises.exercise'])
+            ->with([
+                'days' => fn ($q) => $q->orderBy('day_number'),
+                'days.exercises' => fn ($q) => $q->where('is_active', true),
+                'days.exercises.exercise',
+            ])
             ->latest()
             ->first();
 
