@@ -30,6 +30,11 @@ const greeting = computed(() => {
 
 const firstName = computed(() => user.value?.name?.split(' ')[0] ?? '')
 
+const roleLabel = computed(() => {
+  const map: Record<string, string> = { student: 'Estudiante', trainer: 'Entrenador', admin: 'Administrador' }
+  return map[user.value?.role ?? ''] ?? (user.value?.role ?? '')
+})
+
 const focusColor = (focus: string) => ({
   push: '#F59E0B', pull: '#3B82F6', legs: '#1DF412',
   full_body: '#8B5CF6', cardio: '#EF4444',
@@ -444,7 +449,7 @@ const workoutButtonDisabled = computed(() => props.todayLog?.completed === true)
                 </div>
                 <div>
                   <div class="font-semibold" style="font-size:15px;color:#fff;">{{ user?.name }}</div>
-                  <div style="font-size:12px;color:#9CA3AF;text-transform:capitalize;">{{ user?.role }}</div>
+                  <div style="font-size:12px;color:#9CA3AF;">{{ roleLabel }}</div>
                 </div>
               </div>
               <div class="flex flex-col gap-2">

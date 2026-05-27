@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, reactive, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { Link, router } from '@inertiajs/vue3'
+import { Link, router, usePage } from '@inertiajs/vue3'
 import Sortable from 'sortablejs'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import ExerciseModal from '@/Components/Workout/ExerciseModal.vue'
@@ -12,11 +12,14 @@ defineOptions({ layout: AppLayout })
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 const props = defineProps<{
-  routine:   Routine | null
-  todayDay:  RoutineDay | null
-  isRestDay: boolean
-  todayLog:  WorkoutLog | null
-  prevSets:  Record<number, { weight_kg: number | null; reps_done: number | null }>
+  routine:          Routine | null
+  todayDay:         RoutineDay | null
+  isRestDay:        boolean
+  todayLog:         WorkoutLog | null
+  prevSets:         Record<number, { weight_kg: number | null; reps_done: number | null }>
+  suggestedWeights?: Record<number, number>
+  autostart?:       boolean
+  emptyMode?:       boolean
 }>()
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -475,11 +478,18 @@ function initSets(day: RoutineDay | null) {
   day.exercises.forEach((re) => {
     if (exerciseSets[re.id]) return
     const prev        = props.prevSets[re.exercise.id]
+    const suggested   = props.suggestedWeights?.[re.exercise.id]
     const defaultReps = (re.reps ?? '').split(/[-x]/)[0].trim()
+    // Use previous weight, or suggested weight (marked as hint), or empty
+    const weightKg = prev?.weight_kg != null
+      ? kgToDisplay(prev.weight_kg, unit.value)
+      : suggested != null
+        ? kgToDisplay(suggested, unit.value)
+        : ''
     exerciseSets[re.id] = Array.from({ length: re.sets ?? 3 }, (_, i) => ({
       setNumber: i + 1,
       type:      'working' as SetType,
-      weightKg:  prev?.weight_kg != null ? kgToDisplay(prev.weight_kg, unit.value) : '',
+      weightKg,
       repsDone:  defaultReps || '',
       completed: false,
       savedId:   null,
@@ -498,6 +508,9 @@ onMounted(() => {
   if (activeLog.value && !activeLog.value.completed) {
     startElapsed()
     setFirstActiveExercise()
+  } else if (props.autostart && !activeLog.value) {
+    // "Empezar Rutina" desde la pantalla de rutinas: iniciar sesión automáticamente
+    startWorkout()
   }
   initSortable()
   document.addEventListener('keydown', onDocKeyDown)
@@ -556,6 +569,11 @@ function stopRestTimer() {
   restInterval    = null
   restRunning.value = false
   restSeconds.value = 0
+}
+
+function adjustRestTimer(delta: number) {
+  if (!restRunning.value) return
+  restSeconds.value = Math.max(5, restSeconds.value + delta)
 }
 
 // ─── Day select ───────────────────────────────────────────────────────────────
@@ -679,14 +697,15 @@ function hasPR(re: RoutineExercise): boolean {
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 async function startWorkout() {
-  if (logCreating.value || !selectedDay.value) return
+  if (logCreating.value) return
+  if (!selectedDay.value && !props.emptyMode) return
   logCreating.value = true
   try {
     const res  = await fetch(route('workout.logs.store'), {
       method:      'POST',
       credentials: 'same-origin',
       headers:     { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf() },
-      body:        JSON.stringify({ routine_day_id: selectedDay.value.id }),
+      body:        JSON.stringify({ routine_day_id: selectedDay.value?.id ?? null }),
     })
     const data = await res.json()
     activeLog.value = data.log
@@ -772,6 +791,18 @@ function removeLastSet(re: RoutineExercise) {
   if (!sets[sets.length - 1].completed) sets.pop()
 }
 
+async function discardWorkout() {
+  if (!activeLog.value || completing.value) return
+  if (!confirm('¿Descartar esta sesión? El progreso no se guardará.')) return
+  completing.value = true
+  stopRestTimer()
+  if (elapsedInterval) clearInterval(elapsedInterval)
+  router.delete(
+    route('workout.logs.destroy', { workoutLog: activeLog.value.id }),
+    { onFinish: () => { completing.value = false } }
+  )
+}
+
 async function completeWorkout() {
   if (!activeLog.value || completing.value) return
   completing.value = true
@@ -810,6 +841,47 @@ const MOODS = [
   { id: 'bad',   label: 'Difícil',   emoji: '😓' },
   { id: 'awful', label: 'Mal',       emoji: '😩' },
 ]
+
+// ─── Título de sesión ─────────────────────────────────────────────────────────
+const routineTitle = computed(() =>
+  props.routine?.name ?? (props.emptyMode ? 'Entrenamiento libre' : 'Sin rutina')
+)
+
+// ─── Badges de lesión ─────────────────────────────────────────────────────────
+const page = usePage()
+
+// Mapeo zona ES (contraindications) → EN (user.injuries)
+const ZONE_MAP: Record<string, string> = {
+  hombro:  'shoulder',
+  rodilla: 'knee',
+  lumbar:  'back',
+  espalda: 'back',
+  muneca:  'wrist',
+  muñeca:  'wrist',
+  cadera:  'hip',
+  tobillo: 'ankle',
+  cuello:  'neck',
+}
+
+function injuryZones(): string[] {
+  const user = page.props.auth?.user
+  if (!user?.injuries) return []
+  return (user.injuries as { zone: string }[]).map(i => i.zone.toLowerCase())
+}
+
+function injuryWarning(re: RoutineExercise): string | null {
+  if (!re.exercise?.contraindications?.length) return null
+  const userZones = injuryZones()
+  if (!userZones.length) return null
+  for (const c of re.exercise.contraindications) {
+    const zoneEs = c.body_zone?.toLowerCase() ?? ''
+    const zoneEn = ZONE_MAP[zoneEs] ?? zoneEs
+    if (userZones.includes(zoneEn)) {
+      return zoneEs.charAt(0).toUpperCase() + zoneEs.slice(1)
+    }
+  }
+  return null
+}
 </script>
 
 <template>
@@ -817,7 +889,7 @@ const MOODS = [
     <div class="px-4 md:px-8 py-6 max-w-2xl mx-auto pb-32">
 
       <!-- Sin rutina ─────────────────────────────────────────────────────────── -->
-      <div v-if="!routine" class="flex flex-col items-center text-center py-20">
+      <div v-if="!routine && !emptyMode" class="flex flex-col items-center text-center py-20">
         <div style="width:72px;height:72px;border-radius:18px;background:rgba(29,244,18,0.08);border:1px solid rgba(29,244,18,0.2);display:flex;align-items:center;justify-content:center;margin-bottom:20px;">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1DF412" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/>
@@ -836,7 +908,7 @@ const MOODS = [
         </Link>
       </div>
 
-      <!-- Con rutina ──────────────────────────────────────────────────────────── -->
+      <!-- Con rutina o modo vacío ────────────────────────────────────────────── -->
       <template v-else>
 
         <!-- Header ──────────────────────────────────────────────────────────── -->
@@ -846,7 +918,7 @@ const MOODS = [
           </div>
           <div class="flex items-center justify-between" style="margin-bottom:6px;">
             <h1 class="font-display font-bold" style="font-size:24px;letter-spacing:-0.02em;">
-              {{ routine.name }}
+              {{ routineTitle }}
             </h1>
             <!-- Elapsed time (only when log active) -->
             <div v-if="activeLog && !activeLog.completed"
@@ -856,8 +928,8 @@ const MOODS = [
             </div>
           </div>
 
-          <!-- Selector de día -->
-          <button v-if="selectedDay" @click="showDayPicker = !showDayPicker"
+          <!-- Selector de día (oculto en modo vacío o cuando hay un solo día) -->
+          <button v-if="selectedDay && routine && routine.days && routine.days.length > 1" @click="showDayPicker = !showDayPicker"
             class="flex items-center gap-2"
             style="background:none;border:none;cursor:pointer;padding:0;color:#9CA3AF;font-size:13px;">
             <span :style="{ color: focusColor(selectedDay.focus) }">●</span>
@@ -930,14 +1002,22 @@ const MOODS = [
               {{ restFormatted }}
             </div>
           </div>
+          <button @click="adjustRestTimer(-5)"
+            style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#9CA3AF;cursor:pointer;padding:8px 12px;font-size:12px;font-weight:600;">
+            −5s
+          </button>
           <button @click="stopRestTimer"
             style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#9CA3AF;cursor:pointer;padding:8px 12px;font-size:12px;font-weight:600;">
             Saltar
           </button>
+          <button @click="adjustRestTimer(5)"
+            style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#9CA3AF;cursor:pointer;padding:8px 12px;font-size:12px;font-weight:600;">
+            +5s
+          </button>
         </div>
 
         <!-- Botón empezar ───────────────────────────────────────────────────── -->
-        <div v-if="!activeLog && selectedDay" style="margin-bottom:24px;">
+        <div v-if="!activeLog && (selectedDay || emptyMode)" style="margin-bottom:24px;">
           <button @click="startWorkout" :disabled="logCreating"
             class="w-full flex items-center justify-center gap-2 font-bold"
             style="background:#1DF412;color:#000;border:none;border-radius:14px;padding:16px 24px;font-size:16px;cursor:pointer;box-shadow:0 4px 24px rgba(29,244,18,0.25);">
@@ -971,7 +1051,7 @@ const MOODS = [
           <button @click="linkingSource = null" style="background:none;border:none;color:#6B7280;font-size:18px;cursor:pointer;">×</button>
         </div>
 
-        <div v-if="selectedDay" ref="exerciseListRef" class="space-y-3">
+        <div v-if="selectedDay || emptyMode" ref="exerciseListRef" class="space-y-3">
 
           <div v-for="re in allExercises" :key="re.id"
             style="border-radius:18px;overflow:hidden;transition:all 0.2s;"
@@ -1031,6 +1111,12 @@ const MOODS = [
                     <span v-if="hasPR(re)"
                       style="font-size:9px;font-weight:700;background:rgba(245,158,11,0.15);color:#F59E0B;border-radius:5px;padding:2px 6px;text-transform:uppercase;letter-spacing:0.08em;">
                       🏆 PR
+                    </span>
+                    <!-- Injury badge -->
+                    <span v-if="injuryWarning(re)"
+                      :title="`Cuida tu ${injuryWarning(re)} en este ejercicio`"
+                      style="font-size:9px;font-weight:700;background:rgba(239,68,68,0.12);color:#EF4444;border-radius:5px;padding:2px 6px;letter-spacing:0.06em;cursor:help;">
+                      ⚠️ {{ injuryWarning(re) }}
                     </span>
                     <!-- Superset badge -->
                     <span v-if="supersetGroups[re.id]"
@@ -1258,12 +1344,17 @@ const MOODS = [
         <div v-if="activeLog && !activeLog.completed">
           <button @click="completeWorkout" :disabled="completing"
             class="w-full flex items-center justify-center gap-2 font-bold"
-            style="border-radius:14px;padding:16px 24px;font-size:16px;cursor:pointer;border:none;transition:all 0.2s;"
+            style="border-radius:14px;padding:16px 24px;font-size:16px;cursor:pointer;border:none;transition:all 0.2s;margin-bottom:8px;"
             :style="allDone
               ? 'background:#1DF412;color:#000;box-shadow:0 4px 24px rgba(29,244,18,0.3);'
               : 'background:#161616;color:#1DF412;border:1.5px solid rgba(29,244,18,0.35);'">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             {{ completing ? 'Guardando...' : allDone ? '¡Finalizar entrenamiento! 🔥' : 'Finalizar entrenamiento' }}
+          </button>
+          <button v-if="completedCount === 0" @click="discardWorkout"
+            class="w-full flex items-center justify-center gap-2 font-bold"
+            style="border-radius:14px;padding:12px 24px;font-size:14px;cursor:pointer;border:none;transition:all 0.2s;background:transparent;color:#9CA3AF;border:1px solid rgba(255,255,255,0.06);">
+            Descartar sesión
           </button>
           <p v-if="!allDone && completedCount > 0" class="text-center"
             style="font-size:12px;color:#374151;margin-top:8px;">

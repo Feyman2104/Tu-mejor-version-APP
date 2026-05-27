@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { Link, useForm, usePage } from '@inertiajs/vue3'
 import GuestLayout from '@/Layouts/GuestLayout.vue'
+import LogoSVG from '@/Components/LogoSVG.vue'
 
 defineOptions({ layout: GuestLayout })
 
@@ -185,11 +186,9 @@ function submit() {
         />
         <div class="absolute inset-0" style="background:linear-gradient(180deg,rgba(0,0,0,0.6) 0%,rgba(0,0,0,0.4) 40%,rgba(0,0,0,0.85) 100%);"></div>
 
-        <!-- Logo text -->
+        <!-- Logo SVG -->
         <div class="absolute" style="top:48px;left:48px;">
-          <span class="font-display font-black text-2xl uppercase text-white tracking-tight">
-            Tu Mejor<br><span style="color:#1DF412;">Versión</span>
-          </span>
+          <LogoSVG variant="auth" size="medium" />
         </div>
 
         <!-- Microcopy center -->

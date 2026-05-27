@@ -13,6 +13,9 @@ class AICoachService
     private string $anthropicModel;
     private string $geminiKey;
     private string $geminiModel;
+    private string $minimaxKey;
+    private string $minimaxModel;
+    private string $minimaxBaseUrl;
 
     public function __construct()
     {
@@ -20,19 +23,30 @@ class AICoachService
         $this->anthropicModel = config('services.anthropic.model', 'claude-haiku-4-5-20251001');
         $this->geminiKey      = config('services.gemini.key', '');
         $this->geminiModel    = config('services.gemini.model', 'gemini-2.5-flash');
+        $this->minimaxKey     = config('services.minimax.key', '');
+        $this->minimaxModel   = config('services.minimax.model', 'MiniMax-Text-01');
+        $this->minimaxBaseUrl = config('services.minimax.base_url', 'https://api.minimax.chat/v1');
     }
 
     public function streamChat(User $user, array $history, ?string $workoutContext = null): Generator
     {
         $systemPrompt = $this->buildSystemPrompt($user, $workoutContext);
 
-        // Intentar Claude Haiku primero; usar Gemini como alternativa si falla
+        if ($this->minimaxKey) {
+            try {
+                yield from $this->streamMiniMax($systemPrompt, $history);
+                return;
+            } catch (\Throwable $e) {
+                Log::warning('MiniMax streaming failed, falling back', ['error' => $e->getMessage()]);
+            }
+        }
+
         if ($this->anthropicKey) {
             try {
                 yield from $this->streamClaude($systemPrompt, $history);
                 return;
             } catch (\Throwable $e) {
-                Log::warning('Claude Haiku falló, cambiando a Gemini', ['error' => $e->getMessage()]);
+                Log::warning('Claude Haiku failed, falling back to Gemini', ['error' => $e->getMessage()]);
             }
         }
 
@@ -41,79 +55,143 @@ class AICoachService
                 yield from $this->streamGemini($systemPrompt, $history);
                 return;
             } catch (\Throwable $e) {
-                Log::error('Gemini falló', ['error' => $e->getMessage()]);
-                yield 'Lo siento, hubo un problema al conectar con el asistente. Intenta de nuevo en un momento.';
+                Log::error('All AI providers failed', ['error' => $e->getMessage()]);
+                yield 'Lo siento, ningún servicio de IA está disponible en este momento.';
                 return;
             }
         }
 
-        yield 'Lo siento, no hay ningún proveedor de IA configurado en este momento. Por favor, añade tu API key de Anthropic o Google Gemini en el archivo .env.';
+        yield 'Lo siento, no hay ningún proveedor de IA configurado. Añade tu API key de MiniMax, Anthropic o Google Gemini en el archivo .env';
     }
 
     private function buildSystemPrompt(User $user, ?string $workoutContext = null): string
     {
         $levelLabel = match ($user->level) {
-            'beginner'     => 'principiante',
-            'intermediate' => 'intermedio',
-            'advanced'     => 'avanzado',
+            'beginner'     => 'principiante (0-6 meses)',
+            'intermediate' => 'intermedio (6 meses - 2 años)',
+            'advanced'     => 'avanzado (+2 años)',
             default        => 'sin especificar',
         };
 
         $goalLabel = match ($user->goal) {
-            'fat_loss'    => 'perder grasa',
-            'muscle_gain' => 'ganar músculo',
+            'fat_loss'    => 'pérdida de grasa',
+            'muscle_gain' => 'ganancia muscular',
             'strength'    => 'aumentar fuerza',
             'maintain'    => 'mantener forma física',
-            'flexibility' => 'mejorar flexibilidad',
-            'cardio'      => 'mejorar resistencia cardiovascular',
+            'cardio'      => 'resistencia cardiovascular',
+            'body_recomposition' => 'recomposición corporal (ganar músculo y perder grasa)',
+            'flexibility' => 'mejorar flexibilidad/movilidad',
             default       => 'mejorar condición física general',
         };
 
         $equipment = implode(', ', $user->equipment ?? ['ninguno']);
-        $injuries  = implode(', ', array_filter($user->injuries ?? [], fn ($i) => $i !== 'none'));
-        $injuriesStr = $injuries ?: 'ninguna';
+        $injuriesList = collect($user->injuries ?? [])
+            ->filter(fn ($i) => is_array($i) ? ($i['zone'] ?? '') !== 'none' : $i !== 'none')
+            ->map(fn ($i) => is_array($i) ? ($i['zone'] ?? '') : $i)
+            ->implode(', ');
+        $injuriesStr = $injuriesList ?: 'ninguna';
+
+        $age = $user->age ?? 30;
+        $activityLabel = match ($user->activity_level ?? 'lightly_active') {
+            'sedentary' => 'sedentario (oficina, <5k pasos)',
+            'lightly_active' => 'poco activo (5k-8k pasos)',
+            'active' => 'activo (8k-12k pasos)',
+            'very_active' => 'muy activo (>12k pasos o trabajo físico)',
+            default => 'poco activo',
+        };
+
+        $bmr = $user->weight_kg && $user->height_cm
+            ? round((10 * $user->weight_kg) + (6.25 * $user->height_cm) - (5 * $age) + 5)
+            : null;
+
+        $tdee = $bmr
+            ? round($bmr * match ($user->activity_level ?? 'lightly_active') {
+                'sedentary' => 1.2,
+                'lightly_active' => 1.375,
+                'active' => 1.55,
+                'very_active' => 1.725,
+                default => 1.375,
+            }))
+            : null;
+
+        $macroInfo = '';
+        if ($tdee) {
+            $targetKcal = match ($user->goal) {
+                'fat_loss' => round($tdee * 0.80),
+                'muscle_gain', 'body_recomposition' => round($tdee * 1.15),
+                default => $tdee,
+            };
+            $proteinG = round(($user->weight_kg ?? 70) * 2.0);
+            $fatG = round(($user->weight_kg ?? 70) * 0.8);
+            $carbsG = round(($targetKcal - ($proteinG * 4) - ($fatG * 9)) / 4);
+            $macroInfo = "METAS NUTRICIONALES: {$targetKcal} kcal/día | Proteína: {$proteinG}g | Grasa: {$fatG}g | Carbos: {$carbsG}g";
+        }
+
+        $routineInfo = '';
+        $activeRoutine = $user->routines()->where('is_active', true)->with('days.exercises')->first();
+        if ($activeRoutine) {
+            $todayDay = $activeRoutine->days->first();
+            if ($todayDay) {
+                $exerciseNames = $todayDay->exercises->take(5)->map(fn ($e) => $e->exercise->name ?? 'ejercicio')->join(', ');
+                $routineInfo = "RUTINA ACTIVA: {$activeRoutine->name} | Día de hoy: {$todayDay->name} | Ejercicios: {$exerciseNames}";
+            }
+        }
 
         $prompt = <<<PROMPT
-Eres el Coach IA de "Tu Mejor Versión", entrenador personal con base científica NSCA/ACSM.
+Eres el Coach IA de "Tu Mejor Versión", entrenador personal certificado con base científica NSCA/ACSM.
 Tu misión: dar consejos ESPECÍFICOS y ACCIONABLES, nunca genéricos.
 
 PERFIL DEL USUARIO:
 - Nombre: {$user->name}
+- Edad: {$age} años
 - Nivel: {$levelLabel}
 - Objetivo: {$goalLabel}
-- Equipamiento: {$equipment}
+- Actividad diaria: {$activityLabel}
+- Equipamiento disponible: {$equipment}
 - Lesiones/limitaciones: {$injuriesStr}
+{$macroInfo}
+{$routineInfo}
 
-BASE CIENTÍFICA — aplica siempre (NSCA Evidence-Based Guidelines):
+PRINCIPIOS CIENTÍFICOS (aplica siempre):
 
-RANGOS DE REPETICIONES:
-• Fuerza máxima:        1–5 reps  · 85–100% 1RM · RIR 0–1 · descanso 3–5 min
-• Fuerza-hipertrofia:   4–8 reps  · 75–85%  1RM · RIR 1–2 · descanso 2–3 min
-• Hipertrofia:          6–20 reps · 60–80%  1RM · RIR 1–3 · descanso 60–120 s
-• Resistencia muscular: 15+ reps  · <65%   1RM · RIR 3+  · descanso <60 s
+VOLUMEN DE ENTRENAMIENTO (Schoenfeld et al. 2017):
+- Mantenimiento: 4-6 series/semana por grupo
+- Mínimo efectivo: 8-10 series/semana
+- Máximo adaptativo: 12-20 series/semana (zona óptima de crecimiento)
+- Máximo recuperable: 20-25 series/semana (techo antes de sobreentrenar)
+
+FRECUENCIA (Schoenfeld 2016/2019):
+- Mínimo 2 sesiones/semana por grupo muscular (nunca menos)
+- A mayor volumen, repartir en más sesiones mejora la calidad
+
+RANGOS DE REPETICIONES POR OBJETIVO:
+- Hipertrofia: 6-20 reps · RIR 1-3 · descanso 60-120s
+- Fuerza máxima: 1-5 reps · RIR 0-2 · descanso 3-5 min
+- Resistencia: 15+ reps · RIR 3+ · descanso <60s
 
 PROGRESIÓN (doble progresión):
-→ Completó TODAS las series en el tope del rango → sube 2.5–5 kg la próxima sesión
-→ No llegó al piso del rango → mantén o baja 5–10%
+→ Completó TODAS las series en el tope del rango → subir 2.5-5 kg la próxima sesión
+→ No llegó al piso del rango → mantener o bajar 5-10%
 → Máximo +10% de carga en una semana
 
-FALLO MUSCULAR (evidencia 2023–2024):
-- Series de trabajo: RIR 1–2 (1–2 reps antes del fallo técnico)
-- Fallo real: solo en la última serie del último ejercicio del grupo, máximo
-- RIR > 3 en hipertrofia = demasiado conservador, suboptimal
+LESIONES → RECOMENDAR, no excluir:
+- Rodilla: reducir profundidad, tempo 3-0-3, preferir cadena cerrada
+- Lumbar: preferir bisagra con torso vertical, core anti-extensión
+- Hombro: rango sin dolor, press neutro en vez de tras nuca
+- Muñeca: agarre neutro con mancuernas
+- Cadera: evitar flexión extrema con carga
 
 REGLAS DE RESPUESTA — OBLIGATORIAS:
 1. Máximo 3 párrafos O una lista de 5 puntos. Nunca más largo.
 2. Usa los datos REALES del usuario. "Sube a 58.5 kg" es mejor que "sube gradualmente".
-3. NUNCA repitas la rutina completa — el usuario ya la ve en pantalla.
+3. NUNCA repitas la rutina completa — el usuario ya la tiene en pantalla.
 4. Si hay sesión activa: comenta ESA sesión específica (pesos, reps, ejercicios concretos).
-5. Si pregunta por un ejercicio → responde ese ejercicio solamente.
-6. Máximo 2 emojis por respuesta.
-7. Responde siempre en español. Adapta el vocabulario al nivel del usuario.
-8. Si algo está fuera del fitness/salud, redirige amablemente en 1 frase.
+5. Si pregunta por un ejercicio → responde ese ejercicio solamente con técnica y errores comunes.
+6. Máximo 2 emojis por respuesta. Responde siempre en español.
+7. Si algo está fuera del fitness/salud, redirige amablemente en 1 frase.
+8. Para preguntas de nutrición, usa los macros del usuario (kcal, proteína, etc.) para dar respuestas personalizadas.
 PROMPT;
 
-        // Inyectar el contexto de sesión activa si está disponible
         if ($workoutContext) {
             $prompt .= "\n\n" . $workoutContext;
         }
@@ -188,6 +266,60 @@ PROMPT;
                 $data = json_decode($json, true);
                 $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
                 if ($text) yield $text;
+            }
+        }
+    }
+
+    private function streamMiniMax(string $system, array $history): Generator
+    {
+        $contents = [];
+        foreach ($history as $msg) {
+            $contents[] = [
+                'role'  => $msg['role'] === 'user' ? 'user' : 'assistant',
+                'content' => $msg['content'],
+            ];
+        }
+
+        $url = "{$this->minimaxBaseUrl}/text/chatcompletion_v2";
+
+        $payload = [
+            'model' => $this->minimaxModel,
+            'messages' => array_merge(
+                [['role' => 'system', 'content' => $system]],
+                $contents
+            ),
+            'stream' => true,
+            'max_tokens' => 1024,
+            'temperature' => 0.7,
+        ];
+
+        $response = Http::withHeaders([
+            'Authorization' => "Bearer {$this->minimaxKey}",
+            'Content-Type'  => 'application/json',
+        ])->withOptions(['stream' => true])
+          ->timeout(90)
+          ->post($url, $payload);
+
+        if (!$response->successful()) {
+            throw new \RuntimeException('MiniMax API error: ' . $response->status());
+        }
+
+        $body = $response->body();
+        foreach (explode("\n", $body) as $line) {
+            $line = trim($line);
+            if (!$line || !str_starts_with($line, 'data: ')) continue;
+
+            $json = substr($line, 6);
+            if ($json === '[DONE]' || $json === 'null') break;
+
+            $data = json_decode($json, true);
+            if (!$data) continue;
+
+            $choices = $data['choices'] ?? [];
+            foreach ($choices as $choice) {
+                $delta = $choice['delta'] ?? [];
+                $content = $delta['content'] ?? null;
+                if ($content) yield $content;
             }
         }
     }

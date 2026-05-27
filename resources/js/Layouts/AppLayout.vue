@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
 import type { User } from '@/types'
 import CoachModal from '@/Components/Coach/CoachModal.vue'
+import LogoSVG from '@/Components/LogoSVG.vue'
 
 const page = usePage()
 const user = computed(() => page.props.auth.user as User | null)
@@ -17,7 +18,7 @@ const navItems = [
   },
   {
     name: 'Entrenamiento',
-    routeName: 'workout.today',
+    routeName: 'workout.index',
     urlPrefix: '/workout',
     icon: `<path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/>`,
   },
@@ -27,6 +28,12 @@ const navItems = [
     urlPrefix: '/progress',
     icon: `<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>`,
   },
+  {
+    name: 'Nutrición',
+    routeName: 'nutrition.index',
+    urlPrefix: '/nutrition',
+    icon: `<path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/>`,
+  },
 ]
 
 // Determina si el ítem de navegación es el activo según la URL actual
@@ -34,6 +41,12 @@ function isActive(urlPrefix: string): boolean {
   const url = page.url
   return url === urlPrefix || url.startsWith(urlPrefix + '/')
 }
+
+// Etiqueta de rol en español
+const roleLabel = computed(() => {
+  const map: Record<string, string> = { student: 'Estudiante', trainer: 'Entrenador', admin: 'Administrador' }
+  return map[user.value?.role ?? ''] ?? (user.value?.role ?? '')
+})
 
 // FAB — Coach modal
 const coachOpen = ref(false)
@@ -53,12 +66,9 @@ const hideFab = computed(() => {
            style="background:#0D0D0D;border-right:1px solid rgba(255,255,255,0.06);">
 
       <!-- Logo de la aplicación -->
-      <div class="p-6 border-b" style="border-color:rgba(255,255,255,0.06);">
+      <div class="p-6 border-b flex items-center" style="border-color:rgba(255,255,255,0.06);">
         <Link :href="route('dashboard')" class="block">
-          <span class="font-display font-black text-2xl uppercase text-white tracking-tight">
-            Tu Mejor<br>
-            <span style="color:#1DF412">Versión</span>
-          </span>
+          <LogoSVG variant="sidebar" />
         </Link>
       </div>
 
@@ -95,7 +105,7 @@ const hideFab = computed(() => {
           </div>
           <div class="flex-1 min-w-0">
             <div class="text-sm font-semibold text-white truncate">{{ user.name }}</div>
-            <div class="text-xs capitalize" style="color:#9CA3AF">{{ user.role }}</div>
+            <div class="text-xs" style="color:#9CA3AF">{{ roleLabel }}</div>
           </div>
           <Link :href="route('logout')" method="post" as="button"
                 class="text-xs px-3 py-1.5 rounded-lg transition-colors flex-shrink-0"

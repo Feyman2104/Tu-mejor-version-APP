@@ -11,6 +11,7 @@ use App\Http\Controllers\ExerciseController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PostureController;
 use App\Http\Controllers\ProgressController;
+use App\Http\Controllers\RoutineController;
 use App\Http\Controllers\RoutineExerciseController;
 use App\Http\Controllers\WorkoutController;
 use Illuminate\Support\Facades\Route;
@@ -58,20 +59,30 @@ Route::middleware(['auth'])->group(function () {
 
     // Ejercicios — rutas estáticas ANTES de la ruta con parámetro :slug
     Route::get('/exercises/search', [ExerciseController::class, 'apiSearch'])->name('exercises.search');
+    Route::get('/exercises/muscle-groups', [ExerciseController::class, 'muscleGroups'])->name('exercises.muscle-groups');
     Route::get('/exercises/gifs',   [ExerciseController::class, 'gifsByKeys'])->name('exercises.gifs');
     Route::get('/exercises', [ExerciseController::class, 'index'])->name('exercises.index');
     Route::get('/exercises/{exercise:slug}', [ExerciseController::class, 'show'])->name('exercises.show');
 
     // Entrenamiento
+    Route::get('/workout', [WorkoutController::class, 'index'])->name('workout.index');
     Route::get('/workout/today', [WorkoutController::class, 'today'])->name('workout.today');
+    Route::get('/workout/empty', [WorkoutController::class, 'empty'])->name('workout.empty');
+    Route::get('/workout/session/{routineDay}', [WorkoutController::class, 'session'])->name('workout.session');
     Route::get('/workout/log', [WorkoutController::class, 'log'])->name('workout.log');
     Route::post('/workout/logs', [WorkoutController::class, 'storeLog'])->name('workout.logs.store');
     Route::post('/workout/sets', [WorkoutController::class, 'storeSet'])->name('workout.sets.store');
     Route::patch('/workout/logs/{workoutLog}/complete', [WorkoutController::class, 'complete'])->name('workout.logs.complete');
+    Route::delete('/workout/logs/{workoutLog}', [WorkoutController::class, 'destroy'])->name('workout.logs.destroy');
     Route::get('/workout/logs/{workoutLog}', [WorkoutController::class, 'show'])->name('workout.logs.show');
 
     // Rutinas
     Route::post('/routines/generate', [WorkoutController::class, 'generateRoutine'])->name('routines.generate');
+    Route::get('/routines/create', [RoutineController::class, 'create'])->name('routines.create');
+    Route::post('/routines', [RoutineController::class, 'store'])->name('routines.store');
+    Route::get('/routines/{routine}/edit', [RoutineController::class, 'edit'])->name('routines.edit');
+    Route::patch('/routines/{routine}', [RoutineController::class, 'update'])->name('routines.update');
+    Route::delete('/routines/{routine}', [RoutineController::class, 'destroy'])->name('routines.destroy');
     Route::patch('/routine-exercises/reorder', [RoutineExerciseController::class, 'reorder'])->name('routine.exercises.reorder');
     Route::patch('/routine-exercises/{routineExercise}/deactivate', [RoutineExerciseController::class, 'deactivate'])->name('routine.exercises.deactivate');
 
@@ -82,6 +93,11 @@ Route::middleware(['auth'])->group(function () {
     // Chat
     Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
     Route::post('/chat/send', [ChatController::class, 'send'])->name('chat.send');
+
+    // Nutrición
+    Route::get('/nutrition', [NutritionController::class, 'index'])->name('nutrition.index');
+    Route::get('/nutrition/{dietPlan}', [NutritionController::class, 'show'])->name('nutrition.show');
+    Route::post('/nutrition/regenerate', [NutritionController::class, 'regenerate'])->name('nutrition.regenerate');
 
     // Progreso
     Route::get('/progress', [ProgressController::class, 'index'])->name('progress.index');

@@ -84,6 +84,37 @@ class ExerciseController extends Controller
         return response()->json($exercises);
     }
 
+    /**
+     * Grupos musculares que REALMENTE tienen ejercicios en el catálogo.
+     * Evita mostrar categorías vacías en el buscador. Devuelve [{ value, label }].
+     * GET /exercises/muscle-groups
+     */
+    public function muscleGroups(): JsonResponse
+    {
+        // Orden lógico de presentación; los que no estén listados van al final A-Z.
+        $order = [
+            'pecho', 'espalda', 'hombros', 'trapecios', 'bíceps', 'tríceps', 'antebrazos',
+            'cuádriceps', 'isquiotibiales', 'glúteos', 'gemelos', 'cadera', 'core', 'cuerpo completo',
+        ];
+
+        $groups = Exercise::query()
+            ->select('muscle_group')
+            ->distinct()
+            ->pluck('muscle_group')
+            ->filter()
+            ->sort(function ($a, $b) use ($order) {
+                $ia = array_search($a, $order, true);
+                $ib = array_search($b, $order, true);
+                $ia = $ia === false ? PHP_INT_MAX : $ia;
+                $ib = $ib === false ? PHP_INT_MAX : $ib;
+                return $ia <=> $ib ?: strcmp($a, $b);
+            })
+            ->map(fn ($g) => ['value' => $g, 'label' => mb_convert_case($g, MB_CASE_TITLE, 'UTF-8')])
+            ->values();
+
+        return response()->json($groups);
+    }
+
     public function show(Exercise $exercise): Response
     {
         $exercise->load('contraindications');

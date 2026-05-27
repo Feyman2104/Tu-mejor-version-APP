@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3'
 import GuestLayout from '@/Layouts/GuestLayout.vue'
+import LogoSVG from '@/Components/LogoSVG.vue'
 
 defineOptions({ layout: GuestLayout })
 
@@ -17,6 +18,13 @@ const stats = [
   { value: '4.9', label: 'Valoración media' },
   { value: '80+', label: 'Ejercicios guiados' },
 ]
+
+const progressMetrics = [
+  { value: '1,240', label: 'Ejercicios completados' },
+  { value: '+18%',  label: 'Progreso semanal' },
+  { value: '12.4k', label: 'Calorías quemadas' },
+  { value: '8',     label: 'Logros desbloqueados' },
+]
 </script>
 
 <template>
@@ -32,8 +40,8 @@ const stats = [
 
       <!-- TOP NAV -->
       <nav class="flex justify-between items-center px-6 md:px-16 py-5">
-        <Link :href="route('landing')" class="font-display font-black uppercase tracking-tight" style="font-size:22px;">
-          Tu Mejor<span style="color:#1DF412;">Versión</span>
+        <Link :href="route('landing')" class="flex items-center">
+          <LogoSVG variant="navbar" />
         </Link>
         <div class="flex items-center gap-2 md:gap-3">
           <Link :href="route('login')"
@@ -49,9 +57,23 @@ const stats = [
         </div>
       </nav>
 
-      <!-- HERO -->
-      <section class="grid items-center gap-12 px-6 md:px-16 py-12 md:py-20" style="grid-template-columns:1fr;" :class="'lg:grid-cols-2'">
-        <div>
+      <!-- HERO — sección 1: video de fondo + texto CTA -->
+      <section class="relative overflow-hidden px-6 md:px-16 py-24 md:py-36 flex items-center">
+
+        <!-- Video de fondo -->
+        <video
+          src="/video-gym.mp4"
+          autoplay
+          muted
+          loop
+          playsinline
+          class="absolute inset-0 w-full h-full object-cover"
+          style="z-index:0;" />
+        <!-- Overlay oscuro para legibilidad -->
+        <div class="absolute inset-0" style="z-index:1;background:linear-gradient(90deg,rgba(0,0,0,0.88) 0%,rgba(0,0,0,0.65) 55%,rgba(0,0,0,0.3) 100%);"></div>
+
+        <!-- Contenido del hero -->
+        <div class="relative w-full max-w-2xl" style="z-index:2;">
           <div class="inline-flex items-center gap-2 mb-6" style="font-size:12px;font-weight:600;color:#1DF412;text-transform:uppercase;letter-spacing:0.15em;">
             <span class="rounded-full" style="width:6px;height:6px;background:#1DF412;display:inline-block;"></span>
             Fitness inteligente
@@ -80,15 +102,46 @@ const stats = [
             <span style="font-size:13px;color:#9CA3AF;margin-left:8px;"><strong style="color:#fff;">+15,000 estudiantes</strong> en 20+ universidades</span>
           </div>
         </div>
+      </section>
 
-        <!-- Hero image -->
-        <div class="relative hidden lg:block">
-          <div class="relative overflow-hidden" style="border-radius:24px;aspect-ratio:4/5;">
-            <img src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=1000&fit=crop&q=85" alt="Estudiante entrenando" class="w-full h-full object-cover" />
-            <div class="absolute inset-0" style="background:linear-gradient(180deg,transparent 40%,rgba(0,0,0,0.4) 100%);"></div>
+      <!-- HERO — sección 2: banner a todo el ancho con info de progreso -->
+      <section class="px-6 md:px-16 py-16">
+        <div class="relative w-full overflow-hidden" style="border-radius:24px;min-height:520px;">
+          <!-- Imagen de fondo (landscape) -->
+          <img src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1600&h=900&fit=crop&q=85" alt="Estudiante entrenando" class="absolute inset-0 w-full h-full object-cover" />
+          <!-- Overlay para legibilidad -->
+          <div class="absolute inset-0" style="background:linear-gradient(90deg,rgba(0,0,0,0.9) 0%,rgba(0,0,0,0.65) 45%,rgba(0,0,0,0.35) 100%);"></div>
+          <div class="absolute inset-0" style="background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,0.6) 100%);"></div>
+
+          <!-- Contenido sobre la imagen -->
+          <div class="relative flex flex-col justify-between h-full" style="z-index:10;padding:40px 32px;min-height:520px;">
+
+            <!-- Texto superior -->
+            <div style="max-width:560px;">
+              <div class="inline-flex items-center gap-2 mb-5" style="font-size:12px;font-weight:600;color:#1DF412;text-transform:uppercase;letter-spacing:0.15em;">
+                <span class="rounded-full" style="width:6px;height:6px;background:#1DF412;display:inline-block;"></span>
+                Tu progreso, en tiempo real
+              </div>
+              <h2 class="font-display font-black uppercase" style="font-size:42px;line-height:1;letter-spacing:0.01em;margin-bottom:18px;">
+                Cada sesión cuenta.<br><span style="color:#1DF412;">Cada día suma.</span>
+              </h2>
+              <p style="font-size:17px;color:#D1D5DB;line-height:1.6;max-width:480px;">
+                Registra tus entrenamientos, sigue tu racha y mira cómo mejoras semana a semana. Todo tu avance, en un solo lugar.
+              </p>
+            </div>
+
+            <!-- Métricas inferiores -->
+            <div class="flex flex-wrap gap-3" style="margin-top:32px;">
+              <div v-for="m in progressMetrics" :key="m.label"
+                style="flex:1 1 160px;min-width:140px;background:rgba(13,13,13,0.7);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:18px 20px;">
+                <div class="font-display font-black" style="font-size:30px;letter-spacing:-0.02em;color:#1DF412;line-height:1;">{{ m.value }}</div>
+                <div style="font-size:13px;color:#9CA3AF;margin-top:6px;">{{ m.label }}</div>
+              </div>
+            </div>
           </div>
-          <!-- Floating stat 1 -->
-          <div class="absolute flex items-center gap-3" style="top:32px;left:-32px;background:rgba(13,13,13,0.95);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:14px 18px;box-shadow:0 12px 32px rgba(0,0,0,0.5);">
+
+          <!-- Badge flotante: SESIÓN HOY -->
+          <div class="absolute items-center gap-3 hidden md:flex" style="top:32px;right:32px;z-index:10;background:rgba(13,13,13,0.95);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:14px 18px;box-shadow:0 12px 32px rgba(0,0,0,0.5);">
             <div class="flex items-center justify-center" style="width:40px;height:40px;border-radius:10px;background:rgba(29,244,18,0.08);color:#1DF412;">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
             </div>
@@ -97,8 +150,8 @@ const stats = [
               <div style="font-size:16px;font-weight:700;">42 min · 387 kcal</div>
             </div>
           </div>
-          <!-- Floating stat 2 -->
-          <div class="absolute flex items-center gap-3" style="bottom:60px;right:-32px;background:rgba(13,13,13,0.95);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:14px 18px;box-shadow:0 12px 32px rgba(0,0,0,0.5);">
+          <!-- Badge flotante: RACHA ACTIVA -->
+          <div class="absolute items-center gap-3 hidden lg:flex" style="bottom:32px;right:32px;z-index:10;background:rgba(13,13,13,0.95);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:14px 18px;box-shadow:0 12px 32px rgba(0,0,0,0.5);">
             <div class="flex items-center justify-center" style="width:40px;height:40px;border-radius:10px;background:rgba(29,244,18,0.08);color:#1DF412;">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
             </div>
@@ -175,8 +228,8 @@ const stats = [
 
           <!-- Brand -->
           <div class="col-span-2 md:col-span-1">
-            <Link :href="route('landing')" class="font-display font-black uppercase tracking-tight" style="font-size:18px;text-decoration:none;color:#fff;">
-              Tu Mejor<span style="color:#1DF412;">Versión</span>
+            <Link :href="route('landing')" class="flex items-center mb-3">
+              <LogoSVG variant="navbar" size="small" />
             </Link>
             <p style="font-size:13px;color:#6B7280;line-height:1.6;margin-top:12px;max-width:220px;">
               Fitness inteligente para estudiantes universitarios. Tu mejor versión, con IA.

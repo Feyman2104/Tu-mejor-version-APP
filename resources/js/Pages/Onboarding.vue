@@ -50,6 +50,15 @@ const LEVEL_OPTS = [
   { id: 'intermediate', label: 'Intermedio',   desc: 'De 6 meses a 2 años entrenando' },
   { id: 'advanced',     label: 'Avanzado',     desc: 'Más de 2 años de entrenamiento consistente' },
 ]
+const SPLIT_OPTS = [
+  { id: 'auto',             label: 'Recomendado', icon: '✨', desc: 'IA decide el mejor' },
+  { id: 'full_body',        label: 'Cuerpo total', icon: '🏋️', desc: 'Todo cada sesión' },
+  { id: 'upper_lower',       label: 'Torso-Pierna', icon: '🦿', desc: '2 arriba / 2 abajo' },
+  { id: 'ppl',              label: 'Push/Pull/Legs', icon: '💪', desc: '3 grupos' },
+  { id: 'weider',           label: 'Dividida',      icon: '📋', desc: 'Grupo por día' },
+  { id: 'upper_lower_emphasis', label: 'Énfasis piernas', icon: '🦵', desc: '3 pierna / 2 torso' },
+  { id: 'ppl_hybrid',       label: 'Híbrido PPL',   icon: '🔄', desc: '5 días mixto' },
+]
 const PLACE_OPTS = [
   { id: 'gym',  label: 'Gimnasio',  icon: '🏟️', desc: 'Tengo acceso a maquinaria, pesos libres y más' },
   { id: 'home', label: 'En casa',   icon: '🏠', desc: 'Entreno en mi propio espacio con lo que tengo' },
@@ -105,7 +114,7 @@ const ACTIVITY_LABELS: Record<string, string> = {
 }
 
 // ─── Estado ───────────────────────────────────────────────────────────────────
-const TOTAL_STEPS = 11
+const TOTAL_STEPS = 12
 const step = ref(0)
 const noInjuries = ref(false)
 
@@ -142,6 +151,7 @@ const canContinue = computed(() => {
     case 8: return true
     case 9: return !!form.days_per_week && !!form.session_duration_minutes
     case 10: return true
+    case 11: return true
     default: return false
   }
 })

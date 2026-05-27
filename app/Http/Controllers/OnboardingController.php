@@ -23,6 +23,7 @@ class OnboardingController extends Controller
             'weight_kg'                => ['nullable', 'numeric', 'min:20', 'max:300'],
             'height_cm'                => ['nullable', 'integer', 'min:100', 'max:250'],
             'mobility'                 => ['nullable', 'in:good,average,limited'],
+            'activity_level'           => ['nullable', 'in:sedentary,lightly_active,active,very_active'],
             'level'                    => ['required', 'in:beginner,intermediate,advanced'],
             'goal'                     => ['required', 'in:fat_loss,muscle_gain,strength,maintain,flexibility,cardio,body_recomposition'],
             'place'                    => ['required', 'in:home,gym,both'],
@@ -35,6 +36,9 @@ class OnboardingController extends Controller
             'session_duration_minutes' => ['required', 'integer', 'min:15', 'max:180'],
             'preferred_muscles'        => ['nullable', 'array'],
             'preferred_muscles.*'      => ['string'],
+            'split_type'               => ['nullable', 'in:auto,full_body,upper_lower,ppl,weider'],
+            'has_trained_before'       => ['nullable', 'boolean'],
+            'last_trained'             => ['nullable', 'in:never,currently,lt_1m,1_3m,3_6m,gt_6m'],
         ]);
 
         $user = $request->user();
@@ -44,6 +48,7 @@ class OnboardingController extends Controller
             'weight_kg'                => $validated['weight_kg'] ?? null,
             'height_cm'                => $validated['height_cm'] ?? null,
             'mobility'                 => $validated['mobility'] ?? null,
+            'activity_level'           => $validated['activity_level'] ?? null,
             'level'                    => $validated['level'],
             'goal'                     => $validated['goal'],
             'place'                    => $validated['place'],
@@ -52,6 +57,9 @@ class OnboardingController extends Controller
             'days_per_week'            => $validated['days_per_week'],
             'session_duration_minutes' => $validated['session_duration_minutes'],
             'preferred_muscles'        => $validated['preferred_muscles'] ?? [],
+            'split_type'               => $validated['split_type'] ?? 'auto',
+            'has_trained_before'       => $validated['has_trained_before'] ?? null,
+            'last_trained'             => $validated['last_trained'] ?? null,
             'onboarding_completed_at'  => now(),
         ]);
 

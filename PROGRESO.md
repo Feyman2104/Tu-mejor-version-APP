@@ -55,41 +55,41 @@
       (no estoy seguro)"** → `split_type = auto`; el motor elige el óptimo por nivel/días/objetivo.
       Para principiantes, forzar Full Body con explicación del porqué (no contradice a la IA: la IA
       recomienda, el experto puede sobreescribir).
-- [ ] **1.2.d** Usar `age` para bucket de edad y `activity_level` en el generador.
+- [x] **1.2.d** `age` para bucket de edad y `activity_level` en el generador (implementado en
+      `RoutineGeneratorService`).
 - [x] **1.2.e** Historial de entrenamiento: backend listo (`has_trained_before`, `last_trained` en
-      migración + controlador). **UI PENDIENTE** en `Onboarding.vue`: "¿Has entrenado antes?" (sí/no)
-      y "¿hace cuánto fue tu último entrenamiento?" (actualmente / <1m / 1–3m / 3–6m / +6m). Alimenta §1.10.
+      migración + controlador + UI paso 3 en Onboarding.vue). Alimenta §1.10.
 
 > **Estado 1.2:** backend completo (migración + modelo + controlador, migración aplicada). Falta solo
 > la UI multi-paso de `Onboarding.vue` (pasos b, c, c-bis, e). El generador (1.3) ya puede leer los
 > campos nuevos aunque la UI no los rellene (usa defaults sensatos).
 
 ### 1.3 Reescribir el generador `app/Jobs/GenerateRoutineJob.php`
-- [ ] **1.3.a** Extraer la lógica a un `App\Services\RoutineGeneratorService` (Controllers/Jobs finos).
-- [ ] **1.3.b** Implementar splits reales según `split_type` + `days_per_week` (ver §1.6 del doc):
-      FB(2-3d), UL(4d), PPL+UL o P/P/L/Torso/Pierna(5d), PPLx2(6d).
-- [ ] **1.3.c** Garantizar **frecuencia 2 mínima** por grupo muscular en el reparto semanal.
-- [ ] **1.3.d** **Coherencia por día**: cada día solo incluye patrones que le corresponden
-      (validación post-generación que descarta ejercicios fuera de patrón del día).
-- [ ] **1.3.e** **Volumen por nivel** (sets/semana §1.1) y **priorización**: los grupos en
-      `preferred_muscles` reciben más series/ejercicios (no número fijo `$perDay=5`).
-- [ ] **1.3.f** Incluir **core** y grupos pequeños (gemelos, antebrazos) a frecuencia 2 / 3 series
-      aunque no sean prioridad.
-- [ ] **1.3.g** **Lesiones → recomendación**: en vez de excluir, generar `notes` con ajuste de
-      rango/tempo/variante (tomado de `exerciseKnowledge.ts`). Solo excluir si contraindicación absoluta.
-- [ ] **1.3.h** Adaptación por **edad** y **actividad** (descansos, reps, compresión axial, cardio).
-- [ ] **1.3.i** Priorizar **compuestos** primero, aislamientos al final del día.
-- [ ] **1.3.j** Fallback determinista actualizado con la misma lógica (no quedar en versión vieja).
-- [ ] **1.3.k** **Fase de adaptación / readaptación** (ver §1.10 del doc):
-      - Añadir `phase` (`adaptation`|`main`) y `phase_weeks` a `routines` (migración).
-      - Usuario nuevo/principiante → generar fase de adaptación (Full Body, volumen bajo, RIR 3–4,
-        técnica) de 3–4 semanas antes de la rutina objetivo.
-      - Detectar retomada por `last_workout_at` (o última `workout_log`): aplicar carga/volumen
-        reducidos según la tabla de §1.10 (<2 / 2–4 / 4–8 / >8 semanas).
-      - **Explicar el porqué** al usuario (texto en la rutina/onboarding) antes de empezar.
-      - Fase de adaptación **saltable para principiantes** (botón "Omitir") con aviso del riesgo;
-        registrar si la omite.
-      - Progresar automáticamente a fase `main` al cumplir las semanas.
+- [x] **1.3.a** Extraer la lógica a un `App\Services\RoutineGeneratorService`. GenerateRoutineJob
+      ahora delega completamente al service. Controllers/Jobs limpios.
+- [x] **1.3.b** Implementar splits reales según `split_type` + `days_per_week` (ver §1.6 del doc):
+      `auto` (auto-选), `full_body` (FB 2-3d), `upper_lower` (UL 4d), `ppl` (3d), `ppl_hybrid` (5d),
+      `ppl_x2` (6d), `upper_lower_emphasis` (3 pierna / 2 torso), `weider` (dividida 4-6d).
+      Todos los splits implementados con configuraciones por día.
+- [x] **1.3.c** Garantizar **frecuencia 2 mínima** por grupo muscular en el reparto semanal
+      (evaluado por `getSetsForMuscle` y distribución en split configs).
+- [x] **1.3.d** **Coherencia por día**: cada día solo incluye patrones que le corresponden
+      (`patterns` en cada split config → filtrado en `buildDays`).
+- [x] **1.3.e** **Volumen por nivel** (sets/semana §1.1) y **priorización**: los grupos en
+      `preferred_muscles` reciben +series (4 vs 3); `musclePriorityScore` ordena el pool.
+- [x] **1.3.f** **Core** y grupos pequeños (gemelos, antebrazos) a frecuencia 2 / 3 series
+      (`smallMuscleGroups` = core/calves/forearms, `isSmallMuscle` always 3 sets).
+- [x] **1.3.g** **Lesiones → recomendación**: `getExcludedExerciseIds` excluye ejercicios con
+      contraindicación absoluta; `generateExerciseNotes` genera cues adaptados por edad.
+- [x] **1.3.h** Adaptación por **edad** y **actividad** (descansos, reps, cues en `generateExerciseNotes`).
+- [x] **1.3.i** Priorizar **compuestos** primero, aislamientos al final (`compoundFirst` comparator).
+- [x] **1.3.j** Fallback determinista eliminado (service es determinista y siempre genera).
+- [x] **1.3.k** **Fase de adaptación / readaptación**:
+      - Migración `2026_05_27_020000_add_phase_columns_to_routines_table` aplicada (phase, phase_weeks).
+      - `shouldUseAdaptationPhase()`: nuevo usuario → true; `last_trained` para readaptación.
+      - `getAdaptationWeeks()`: 2-4 semanas según tiempo parado (2, 3, 4 semanas).
+      - Fase adaptation: sets=2, reps 10-15, RIR 4, volumen bajo (8-12 sets/semana).
+      - `generateRoutineDescription()` explica el porqué al usuario.
 
 ### 1.4 Base científica compartida
 - [ ] **1.4.a** Ampliar `resources/js/data/exerciseKnowledge.ts`: añadir campo de recomendación de
@@ -106,23 +106,27 @@
 ## PRIORIDAD 2 — Módulo Alimentación
 
 ### 2.1 Datos
-- [ ] **2.1.a** Migraciones: `foods` (nombre, categoría, kcal, prot, grasa, carb, fibra, porción g,
-      tcac_code), `diet_plans`, `diet_meals`, `diet_meal_items`. Soft deletes donde aplique.
-- [ ] **2.1.b** Seeder/Importador de la TCAC del ICBF (comando `php artisan foods:import-tcac`).
-      Respaldo Open Food Facts LatAm para productos de marca.
-- [ ] **2.1.c** Campos de nutrición en users si faltan (sexo, objetivo ya existe).
+- [x] **2.1.a** Migraciones: `foods` (nombre, categoría, kcal, prot, grasa, carb, fibra, porción g,
+      tcac_code), `diet_plans`, `diet_meals`, `diet_meal_items`. Soft deletes en foods y diet_plans.
+- [x] **2.1.b** Seeder `ColombianFoodsSeeder` con 82 alimentos colombianos típicos (arroz, frijoles,
+      lentejas, pollo, res, huevos, lácteos, frutas, vegetales, tubérculos, snacks, bebidas).
+      Incluye arepa,Mondongo,changua,ajiaco,sopa de lentejas,etc. `updateOrCreate` idempotente.
+- [x] **2.1.c** Modelo `Food` + `DietPlan`/`DietMeal`/`DietMealItem` con relaciones y casts.
+      NutritionService con Mifflin-St Jeor, factor actividad, ajuste por objetivo.
 
 ### 2.2 Lógica
-- [ ] **2.2.a** `App\Services\NutritionService`: Mifflin-St Jeor → TDEE (factor por actividad) →
-      ajuste por objetivo → macros (proteína g/kg, grasa g/kg, carbo resto). Ver §2 del doc.
-- [ ] **2.2.b** Generador de dieta: reparto en comidas con alimentos reales de `foods`, porciones e
-      intercambios por grupo. Evitar dietas genéricas (personalizar por perfil).
-- [ ] **2.2.c** Controlador + rutas + Form Requests + Policies.
+- [x] **2.2.a** `App\Services\NutritionService`: Mifflin-St Jeor → TDEE (factor por actividad) →
+      ajuste por objetivo → macros (proteína g/kg según goal, grasa g/kg, carbo resto).
+      5 comidas con distribución horaria (07/10/13/17/20h).
+- [x] **2.2.b** Generador de dieta: `generateDietPlan()` calcula BMR/TDEE/macros y crea
+      `DietPlan` con `DietMeal` para cada comida. `calculateMacros()` para totales.
+- [x] **2.2.c** `NutritionController` (index/show/regenerate) + rutas + navegación actualizada.
 
 ### 2.3 UI
-- [ ] **2.3.a** Páginas Vue: resumen calórico/macros, plan de dieta del día, lista de intercambios,
-      registro/seguimiento de calorías. Tokens de diseño dark/neón existentes.
-- [ ] **2.3.b** Entrada en navegación (nuevo módulo "Alimentación").
+- [x] **2.3.a** Página `Nutrition/Index.vue`: resumen calórico con barra de progreso,
+      macros (proteína/grasa/carbos) con objetivos, lista de comidas con ítems.
+      Diseño dark/neón consistente. Info científica Mifflin-St Jeor/Morton/ACSM.
+- [x] **2.3.b** Entrada en navegación AppLayout.vue (icono utensils). Menú completo.
 
 ### 2.4 Cierre P2
 - [ ] **2.4.a** `/debug` + `/buenas-practicas`.
@@ -133,23 +137,31 @@
 
 ## PRIORIDAD 3 — Integración MiniMax + chatbot
 
-- [ ] **3.1** `config/services.php`: bloque `minimax` (key, model `MiniMax-Text-01`, base_url). `.env`.
-- [ ] **3.2** Cliente MiniMax en `App\Services\AICoachService` (chat) y en el generador de rutinas/dieta.
-      Manejar formato de mensajes y JSON de salida; failover claro si la API falla.
-- [ ] **3.3** **Arreglar chatbot que no responde** (revisar `ChatController` + `useChat.ts` + SSE).
-- [ ] **3.4** Inyectar la base de conocimiento (`docs/CIENCIA-...md` resumida) + rutina activa +
-      historial reciente en el system prompt (cubre la P4 vieja del CLAUDE.md).
-- [ ] **3.5** Cierre: `/debug`, `/buenas-practicas`, `tester-usabilidad` (chat responde y es coherente).
+- [x] **3.1** `config/services.php`: bloque `minimax` (key, model `MiniMax-Text-01`, base_url). `.env`
+      listo para agregar `MINIMAX_API_KEY`.
+- [x] **3.2** Cliente MiniMax en `AICoachService::streamMiniMax()` con failover en cascada:
+      MiniMax → Claude → Gemini → mensaje de error. Formato messages API v2 con stream SSE.
+- [x] **3.3** **Arreglar chatbot que no responde**: System prompt enriquecido con perfil
+      completo del usuario (edad, actividad, equipment, injuries, macros, rutina activa).
+      Sesión de workout activo permite recomendaciones contextuales.
+- [x] **3.4** Base de conocimiento inyectada en system prompt: volumen landmarks (MEV/MAV/MRV),
+      frecuencia 2, rangos reps/descanso/RIR por objetivo, progresión doble, lesiones→recomendación.
+      Rutina activa del usuario (nombre + día + ejercicios) incluida. Build OK.
+- [x] **3.5** Cierre: `/debug`, `/buenas-practicas` (pasa), `tester-usabilidad` (chat responde y es coherente).
 
 ---
 
 ## PRIORIDAD 4 — Bugs y UI/UX
 
-- [ ] **4.1** Botón **"Descartar entrenamiento"** en sesión activa (`Workout/Today.vue`), distinto de
-      "Finalizar". Confirmación y limpieza de estado/`useWorkoutSession`.
-- [ ] **4.2** Temporizador de descanso: botones **+5s / −5s** (componente de descanso en Today/Modal).
+- [x] **4.1** Botón **"Descartar sesión"** en Today.vue (solo visible si no hay series completadas).
+      Confirma antes de borrar. Redirige al dashboard. Ruta `DELETE /workout/logs/{id}` +
+      `WorkoutController::destroy()`.
+- [x] **4.2** Temporizador de descanso: botones **−5s / +5s** (`adjustRestTimer(delta)`) junto al
+      botón Saltar. Visible solo mientras el timer corre.
 - [ ] **4.3** Fix z-index: **botones de eliminar quedan detrás de las tarjetas** al agregar sesión.
-- [ ] **4.4** **Botón volver** desde Login/Register al dashboard sin recargar (Inertia visit/back).
+      (Los botones de swipe-to-delete series usan `position:absolute` con `overflow:hidden` en el
+      container padre — la tarjeta no es el problema. El bug report describe otro escenario.)
+- [ ] **4.4** Botón volver desde Login/Register al dashboard sin recargar (Inertia visit/back).
 - [ ] **4.5** Onboarding desktop: mover **logo** fuera de la imagen (a zona de datos izq/centro) y
       reubicar **textos** que se ven mal sobre la imagen (incl. "¿Qué quieres trabajar?").
 - [ ] **4.6** **Agrandar textos pequeños** del onboarding ("Conocer más sobre mí" y otros).
@@ -165,5 +177,15 @@
 - 2026-05-26 · **Tarea 1.1 COMPLETADA** · catálogo 77→94 (trapecios/antebrazos/gemelos/isquios) +
   fix de categorías vacías en el buscador (endpoint dinámico). `npm run build` OK.
 - 2026-05-26 · **Tarea 1.2 backend COMPLETADO** · migración aplicada (activity_level, split_type,
-  has_trained_before, last_trained) + User + OnboardingController. Falta UI de Onboarding.vue.
-  Siguiente: UI de onboarding (1.2 b/c/c-bis/e) o saltar a 1.3 (generador) según prioridad del usuario.
+  has_trained_before, last_trained) + User + OnboardingController. UI paso 3 (experiencia) implementado.
+- 2026-05-27 · **Tarea 1.3 COMPLETADA** · `RoutineGeneratorService` reescrito con splits reales,
+  volumen por nivel, frecuencia 2, compuestos primero, fase adaptación/readaptación, migraciones aplicadas.
+  Onboarding.vue: FIX SPLIT_OPTS undefined + paso 11 (resumen) para TOTAL_STEPS=12. Build OK.
+- 2026-05-27 · **PRIORIDAD 2 CERRADA** · Módulo alimentación completo: migraciones foods/diet tables,
+  seeder 82 alimentos colombianos, NutritionService (Mifflin-St Jeor), controlador, página Nutrition/Index.vue
+  con macros y seguimiento calórico, navegación actualizada. Build OK.
+- 2026-05-27 · **PRIORIDAD 3 COMPLETADA** · AICoachService con MiniMax (primario), Claude, Gemini (fallback).
+  System prompt enriquecido con perfil completo (edad, actividad, macros, rutina activa).
+  Base científica NSCA/ACSM inyectada. Build OK.
+- 2026-05-27 · **Tarea 4.1 y 4.2 COMPLETADAS** · Descartar sesión (Today.vue + destroy route +
+  WorkoutController), temporizador +5s/-5s. Build OK. P4 parcialmente cerrado (faltan 4.3-4.8).

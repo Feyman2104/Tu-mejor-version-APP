@@ -17,8 +17,9 @@ class User extends Authenticatable
         'role', 'level', 'goal',
         'equipment', 'injuries', 'avatar',
         'onboarding_completed_at',
-        'age', 'weight_kg', 'height_cm', 'mobility',
+        'age', 'weight_kg', 'height_cm', 'mobility', 'activity_level',
         'place', 'days_per_week', 'session_duration_minutes', 'preferred_muscles',
+        'split_type', 'has_trained_before', 'last_trained',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -32,6 +33,7 @@ class User extends Authenticatable
             'equipment'               => 'array',
             'injuries'                => 'array',
             'preferred_muscles'       => 'array',
+            'has_trained_before'      => 'boolean',
         ];
     }
 

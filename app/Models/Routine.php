@@ -14,7 +14,7 @@ class Routine extends Model
 
     protected $fillable = [
         'user_id', 'name', 'description', 'generated_by_ai',
-        'goal', 'days_per_week', 'is_active',
+        'goal', 'days_per_week', 'is_active', 'phase', 'phase_weeks',
     ];
 
     protected function casts(): array
@@ -22,6 +22,7 @@ class Routine extends Model
         return [
             'generated_by_ai' => 'boolean',
             'is_active'       => 'boolean',
+            'phase_weeks'     => 'integer',
         ];
     }
 

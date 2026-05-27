@@ -69,11 +69,11 @@ class ImportExerciseGifs extends Command
         'curl-martillo'               => 'hammer curl',
         'fondos-asistidos'            => 'band assisted pull-up',
         'peso-muerto-sumo'            => 'sumo deadlift',
-        'aperturas-mancuernas'        => 'dumbbell fly',
+        'aperturas-mancuernas'        => 'dumbbell flyes',
         'good-morning'                => 'good morning',
         'curl-predicador'             => 'preacher curl',
         'press-frances'               => 'skull crusher',
-        'cable-crossover'             => 'cable fly',
+        'cable-crossover'             => 'cable crossover',
         'peso-muerto-trap-bar'        => 'trap bar deadlift',
         'sentadilla-goblet'           => 'goblet squat',
         'sentadilla-bulgara-barra'    => 'bulgarian split squat',
@@ -162,15 +162,25 @@ class ImportExerciseGifs extends Command
 
             $imageUrl = $apiIndex[strtolower($englishName)] ?? null;
 
-            // Búsqueda difusa si no hay coincidencia exacta
+            // Búsqueda difusa: requiere que TODAS las palabras del nombre buscado estén
+            // presentes en el nombre del dataset; elige el nombre más corto (menos ambiguo).
             if (! $imageUrl) {
-                $parts = explode(' ', strtolower($englishName));
+                $parts      = explode(' ', strtolower($englishName));
+                $bestName   = null;
+                $bestLen    = PHP_INT_MAX;
                 foreach ($apiIndex as $apiName => $url) {
-                    $matches = array_filter($parts, fn($p) => str_contains($apiName, $p));
-                    if (count($matches) >= min(2, count($parts))) {
-                        $imageUrl = $url;
-                        break;
+                    if (! $url) continue;
+                    $allMatch = true;
+                    foreach ($parts as $p) {
+                        if (! str_contains($apiName, $p)) { $allMatch = false; break; }
                     }
+                    if ($allMatch && strlen($apiName) < $bestLen) {
+                        $bestLen  = strlen($apiName);
+                        $bestName = $apiName;
+                    }
+                }
+                if ($bestName !== null) {
+                    $imageUrl = $apiIndex[$bestName];
                 }
             }
 

@@ -48,19 +48,22 @@ function confirmAdd(): void {
   emit('close')
 }
 
-// Grupos musculares disponibles (coinciden con los valores de la BD)
-const MUSCLE_GROUPS = [
-  { value: '',          label: 'Todos' },
-  { value: 'chest',     label: 'Pecho' },
-  { value: 'back',      label: 'Espalda' },
-  { value: 'shoulders', label: 'Hombros' },
-  { value: 'biceps',    label: 'Bíceps' },
-  { value: 'triceps',   label: 'Tríceps' },
-  { value: 'legs',      label: 'Piernas' },
-  { value: 'glutes',    label: 'Glúteos' },
-  { value: 'core',      label: 'Core' },
-  { value: 'cardio',    label: 'Cardio' },
-]
+// Grupos musculares disponibles — cargados dinámicamente desde la BD para que
+// los valores coincidan exactamente y NO se muestren categorías vacías.
+const MUSCLE_GROUPS = ref<{ value: string; label: string }[]>([
+  { value: '', label: 'Todos' },
+])
+
+async function loadMuscleGroups() {
+  try {
+    const res = await fetch('/exercises/muscle-groups', { credentials: 'same-origin' })
+    if (!res.ok) return
+    const groups = (await res.json()) as { value: string; label: string }[]
+    MUSCLE_GROUPS.value = [{ value: '', label: 'Todos' }, ...groups]
+  } catch {
+    // Si falla, queda al menos "Todos" y la búsqueda por texto sigue funcionando.
+  }
+}
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -94,6 +97,7 @@ function onKeydown(e: KeyboardEvent) {
 onMounted(() => {
   document.addEventListener('keydown', onKeydown)
   document.body.style.overflow = 'hidden'
+  loadMuscleGroups() // categorías reales (no vacías)
   doSearch() // carga inicial — todos los ejercicios
   setTimeout(() => searchInput.value?.focus(), 80)
 })

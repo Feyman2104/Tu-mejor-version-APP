@@ -41,18 +41,41 @@ export interface Exercise {
   video_url: string | null
   met_value: number
   knowledge_key: string | null
+  contraindications?: ExerciseContraindication[]
+}
+
+export interface ExerciseContraindication {
+  id: number
+  exercise_id: number
+  body_zone: string
+  injury_phase: string | null
+  recommendation: string | null
 }
 
 export interface RoutineExercise {
   id: number
   exercise: Exercise
+  exercise_id?: number
+  routine_day_id?: number
   sets: number
   reps: string
-  duration_seconds: number | null
+  duration_seconds?: number | null
   rest_seconds: number
   rir: number | null
   order: number
-  notes: string | null
+  notes?: string | null
+}
+
+/** Tarjeta de rutina en la pantalla "Entrenamiento" (cada RoutineDay es una plantilla). */
+export interface RoutineCard {
+  routine_day_id: number
+  routine_id: number
+  name: string
+  focus: string
+  exercise_count: number
+  preview: string[]
+  is_custom: boolean
+  is_active: boolean
 }
 
 export interface RoutineDay {

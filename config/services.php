@@ -45,6 +45,12 @@ return [
         'model' => env('GEMINI_MODEL', 'gemini-2.5-flash'),
     ],
 
+    'minimax' => [
+        'key'      => env('MINIMAX_API_KEY'),
+        'model'    => env('MINIMAX_MODEL', 'MiniMax-Text-01'),
+        'base_url' => env('MINIMAX_BASE_URL', 'https://api.minimax.chat/v1'),
+    ],
+
     'google' => [
         'client_id'     => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),

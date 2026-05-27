@@ -29,7 +29,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       devOptions: { enabled: false },
-      includeAssets: ['favicon.ico', 'icons/*.png'],
+      includeAssets: ['favicon.ico', 'icons/*.png', 'icon-mobile.svg'],
       manifest: {
         name: 'Tu Mejor Versión',
         short_name: 'TuMejorVer',
@@ -39,6 +39,7 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',
+        scope: '/',
         icons: [
           { src: '/icons/icon-72.png',   sizes: '72x72',   type: 'image/png' },
           { src: '/icons/icon-96.png',   sizes: '96x96',   type: 'image/png' },
@@ -48,6 +49,7 @@ export default defineConfig({
           { src: '/icons/icon-192.png',  sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
           { src: '/icons/icon-384.png',  sizes: '384x384', type: 'image/png' },
           { src: '/icons/icon-512.png',  sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+          { src: '/icon-mobile.svg',     sizes: 'any',     type: 'image/svg+xml', purpose: 'maskable' },
         ],
       },
       workbox: {
