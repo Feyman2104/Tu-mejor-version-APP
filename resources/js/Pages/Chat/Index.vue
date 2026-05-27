@@ -199,7 +199,7 @@ const QUICK = [
           </button>
         </div>
       </div>
-      <p class="text-center mt-2" style="font-size:11px;color:#6B7280;">Coach IA · Claude Haiku + Gemini Flash</p>
+      <p class="text-center mt-2" style="font-size:11px;color:#6B7280;">Coach IA · MiniMax · Claude Haiku · Gemini Flash</p>
     </div>
 
   </div>

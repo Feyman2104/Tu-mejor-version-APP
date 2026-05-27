@@ -25,7 +25,7 @@ class AICoachService
         $this->geminiModel    = config('services.gemini.model', 'gemini-2.5-flash');
         $this->minimaxKey     = config('services.minimax.key', '');
         $this->minimaxModel   = config('services.minimax.model', 'MiniMax-Text-01');
-        $this->minimaxBaseUrl = config('services.minimax.base_url', 'https://api.minimax.chat/v1');
+        $this->minimaxBaseUrl = config('services.minimax.base_url', 'https://api.minimaxi.chat/v1');
     }
 
     public function streamChat(User $user, array $history, ?string $workoutContext = null): Generator
@@ -37,7 +37,7 @@ class AICoachService
                 yield from $this->streamMiniMax($systemPrompt, $history);
                 return;
             } catch (\Throwable $e) {
-                Log::warning('MiniMax streaming failed, falling back', ['error' => $e->getMessage()]);
+                Log::warning('MiniMax streaming failed, falling back to Claude', ['error' => $e->getMessage()]);
             }
         }
 
@@ -111,7 +111,7 @@ class AICoachService
                 'active' => 1.55,
                 'very_active' => 1.725,
                 default => 1.375,
-            }))
+            })
             : null;
 
         $macroInfo = '';
@@ -219,23 +219,19 @@ PROMPT;
             throw new \RuntimeException('Claude API error: ' . $response->status());
         }
 
-        $body = $response->body();
-        foreach (explode("\n", $body) as $line) {
-            if (str_starts_with($line, 'data: ')) {
-                $json = substr($line, 6);
-                if ($json === '[DONE]') break;
-                $data = json_decode($json, true);
+        yield from $this->parseSSEStream(
+            $response->toPsrResponse()->getBody(),
+            function (array $data): ?string {
                 if (($data['type'] ?? '') === 'content_block_delta') {
-                    $text = $data['delta']['text'] ?? '';
-                    if ($text) yield $text;
+                    return $data['delta']['text'] ?? null;
                 }
+                return null;
             }
-        }
+        );
     }
 
     private function streamGemini(string $system, array $history): Generator
     {
-        // Convertir el historial de formato Anthropic al formato de Gemini
         $contents = [];
         foreach ($history as $msg) {
             $contents[] = [
@@ -258,16 +254,12 @@ PROMPT;
             throw new \RuntimeException('Gemini API error: ' . $response->status());
         }
 
-        $body = $response->body();
-        foreach (explode("\n", $body) as $line) {
-            if (str_starts_with($line, 'data: ')) {
-                $json = substr($line, 6);
-                if ($json === '[DONE]') break;
-                $data = json_decode($json, true);
-                $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
-                if ($text) yield $text;
+        yield from $this->parseSSEStream(
+            $response->toPsrResponse()->getBody(),
+            function (array $data): ?string {
+                return $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
             }
-        }
+        );
     }
 
     private function streamMiniMax(string $system, array $history): Generator
@@ -275,7 +267,7 @@ PROMPT;
         $contents = [];
         foreach ($history as $msg) {
             $contents[] = [
-                'role'  => $msg['role'] === 'user' ? 'user' : 'assistant',
+                'role'    => $msg['role'] === 'user' ? 'user' : 'assistant',
                 'content' => $msg['content'],
             ];
         }
@@ -283,13 +275,13 @@ PROMPT;
         $url = "{$this->minimaxBaseUrl}/text/chatcompletion_v2";
 
         $payload = [
-            'model' => $this->minimaxModel,
-            'messages' => array_merge(
+            'model'       => $this->minimaxModel,
+            'messages'    => array_merge(
                 [['role' => 'system', 'content' => $system]],
                 $contents
             ),
-            'stream' => true,
-            'max_tokens' => 1024,
+            'stream'      => true,
+            'max_tokens'  => 1024,
             'temperature' => 0.7,
         ];
 
@@ -300,26 +292,94 @@ PROMPT;
           ->timeout(90)
           ->post($url, $payload);
 
-        if (!$response->successful()) {
-            throw new \RuntimeException('MiniMax API error: ' . $response->status());
+        if (! $response->successful()) {
+            throw new \RuntimeException('MiniMax API error: ' . $response->status() . ' ' . $response->body());
         }
 
-        $body = $response->body();
-        foreach (explode("\n", $body) as $line) {
-            $line = trim($line);
-            if (!$line || !str_starts_with($line, 'data: ')) continue;
+        yield from $this->filterThinkBlocks(
+            $this->parseSSEStream(
+                $response->toPsrResponse()->getBody(),
+                function (array $data): ?string {
+                    foreach ($data['choices'] ?? [] as $choice) {
+                        $content = $choice['delta']['content'] ?? null;
+                        if ($content) return $content;
+                    }
+                    return null;
+                }
+            )
+        );
+    }
 
-            $json = substr($line, 6);
-            if ($json === '[DONE]' || $json === 'null') break;
+    /**
+     * Filtra bloques <think>...</think> que MiniMax-M2.7 emite como razonamiento interno.
+     */
+    private function filterThinkBlocks(\Generator $stream): \Generator
+    {
+        $buffer   = '';
+        $inThink  = false;
 
-            $data = json_decode($json, true);
-            if (!$data) continue;
+        foreach ($stream as $chunk) {
+            $buffer .= $chunk;
+            $output  = '';
 
-            $choices = $data['choices'] ?? [];
-            foreach ($choices as $choice) {
-                $delta = $choice['delta'] ?? [];
-                $content = $delta['content'] ?? null;
-                if ($content) yield $content;
+            while ($buffer !== '') {
+                if ($inThink) {
+                    $end = strpos($buffer, '</think>');
+                    if ($end !== false) {
+                        $buffer  = substr($buffer, $end + 8);
+                        $inThink = false;
+                    } else {
+                        break;
+                    }
+                } else {
+                    $start = strpos($buffer, '<think>');
+                    if ($start !== false) {
+                        $output .= substr($buffer, 0, $start);
+                        $buffer  = substr($buffer, $start + 7);
+                        $inThink = true;
+                    } else {
+                        // Guarda los últimos 7 chars por si llega un <think> partido entre chunks
+                        if (strlen($buffer) > 7) {
+                            $safe    = strlen($buffer) - 7;
+                            $output .= substr($buffer, 0, $safe);
+                            $buffer  = substr($buffer, $safe);
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if ($output !== '') yield $output;
+        }
+
+        if (! $inThink && $buffer !== '') yield $buffer;
+    }
+
+    /**
+     * Lee un stream SSE en chunks reales y llama al extractor por cada evento.
+     * Reemplaza el anti-patrón ->body() que bufferizaba la respuesta completa.
+     */
+    private function parseSSEStream(\Psr\Http\Message\StreamInterface $stream, callable $extractor): Generator
+    {
+        $buffer = '';
+
+        while (! $stream->eof()) {
+            $buffer .= $stream->read(1024);
+
+            while (($pos = strpos($buffer, "\n")) !== false) {
+                $line   = trim(substr($buffer, 0, $pos));
+                $buffer = substr($buffer, $pos + 1);
+
+                if (! $line || ! str_starts_with($line, 'data: ')) continue;
+
+                $json = substr($line, 6);
+                if ($json === '[DONE]' || $json === 'null') return;
+
+                $data = json_decode($json, true);
+                if (! $data) continue;
+
+                $text = $extractor($data);
+                if ($text) yield $text;
             }
         }
     }

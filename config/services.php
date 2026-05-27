@@ -47,8 +47,8 @@ return [
 
     'minimax' => [
         'key'      => env('MINIMAX_API_KEY'),
-        'model'    => env('MINIMAX_MODEL', 'MiniMax-Text-01'),
-        'base_url' => env('MINIMAX_BASE_URL', 'https://api.minimax.chat/v1'),
+        'model'    => env('MINIMAX_MODEL', 'MiniMax-M2.7'),
+        'base_url' => env('MINIMAX_BASE_URL', 'https://api.minimaxi.chat/v1'),
     ],
 
     'google' => [
