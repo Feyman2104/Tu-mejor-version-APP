@@ -92,9 +92,16 @@
       - `generateRoutineDescription()` explica el porqué al usuario.
 
 ### 1.4 Base científica compartida
-- [ ] **1.4.a** Ampliar `resources/js/data/exerciseKnowledge.ts`: añadir campo de recomendación de
-      variante/ejecución por contraindicación; cubrir nuevos ejercicios.
-- [ ] **1.4.b** Conectar `knowledge_key` de los ejercicios nuevos.
+- [x] **1.4.a** Ampliar `resources/js/data/exerciseKnowledge.ts`: añadir campo de recomendación de
+      variante/ejecución por contraindicación; cubrir nuevos ejercicios. Agregados: shrugs, shrug_bar,
+      shrug_db, shrug_band, y_raises_prone, face_pull, wrist_curl, reverse_wrist_curl, hammer_curl,
+      farmers_walk, dead_hang, wrist_rotation, calf_raise, calf_raise_seated, single_leg_calf_raise,
+      lying_leg_curl, nordic_curl, good_morning. 2026-05-26.
+- [x] **1.4.b** Conectar `knowledge_key` de los ejercicios nuevos en ExerciseExpansionSeeder.php:
+      shrug_db→shrug_db, shrug_bar→shrug_bar, face_pull→face_pull, shrug_band→shrug_band,
+      wrist_curl, reverse_wrist_curl, hammer_curl, farmers_walk, dead_hang, wrist_rotation,
+      calf_raise, calf_raise_seated, single_leg_calf_raise, lying_leg_curl, nordic_curl, good_morning.
+      Seeder actualizado, listo para re-ejecutar. 2026-05-26.
 
 ### 1.5 Cierre P1
 - [ ] **1.5.a** `/debug` en cada subtarea, `/buenas-practicas` al cerrar P1.
@@ -189,3 +196,6 @@
   Base científica NSCA/ACSM inyectada. Build OK.
 - 2026-05-27 · **Tarea 4.1 y 4.2 COMPLETADAS** · Descartar sesión (Today.vue + destroy route +
   WorkoutController), temporizador +5s/-5s. Build OK. P4 parcialmente cerrado (faltan 4.3-4.8).
+- 2026-05-26 · **Tarea 1.4 COMPLETADA** · exerciseKnowledge.ts ampliado con 18 entradas nuevas
+  (trapecios, antebrazos, gemelos, isquiotibiales). ExerciseExpansionSeeder.php actualizado con
+  knowledge_key para todos los ejercicios nuevos. Seeder listo para re-ejecutar.

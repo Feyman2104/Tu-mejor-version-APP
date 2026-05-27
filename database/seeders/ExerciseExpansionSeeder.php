@@ -64,7 +64,7 @@ class ExerciseExpansionSeeder extends Seeder
                     'Usar impulso del cuerpo: mantén el torso firme.',
                     'Doblar los codos: el trabajo es escapular, no de bíceps.',
                 ],
-                'met_value' => 4.00, 'knowledge_key' => null,
+                'met_value' => 4.00, 'knowledge_key' => 'shrug_db',
                 'contraindications' => [],
             ],
             [
@@ -83,7 +83,7 @@ class ExerciseExpansionSeeder extends Seeder
                     'Encorvar la espalda: mantén el pecho alto.',
                     'Rango incompleto: busca la máxima elevación.',
                 ],
-                'met_value' => 4.50, 'knowledge_key' => null,
+                'met_value' => 4.50, 'knowledge_key' => 'shrug_bar',
                 'contraindications' => [],
             ],
             [
@@ -102,7 +102,7 @@ class ExerciseExpansionSeeder extends Seeder
                     'Codos caídos: mantenlos a la altura de los hombros.',
                     'Usar demasiado peso: prioriza la técnica.',
                 ],
-                'met_value' => 4.00, 'knowledge_key' => null,
+                'met_value' => 4.00, 'knowledge_key' => 'face_pull',
                 'contraindications' => [],
             ],
             [
@@ -142,7 +142,7 @@ class ExerciseExpansionSeeder extends Seeder
                     'Doblar los codos: mantén los brazos rectos.',
                     'Banda con poca tensión: ajusta el agarre.',
                 ],
-                'met_value' => 3.50, 'knowledge_key' => null,
+                'met_value' => 3.50, 'knowledge_key' => 'shrug_band',
                 'contraindications' => [],
             ],
             [
@@ -184,7 +184,7 @@ class ExerciseExpansionSeeder extends Seeder
                     'Mover el codo: solo trabaja la muñeca.',
                     'Rango corto: busca el recorrido completo.',
                 ],
-                'met_value' => 3.00, 'knowledge_key' => null,
+                'met_value' => 3.00, 'knowledge_key' => 'wrist_curl',
                 'contraindications' => [
                     ['zone' => 'muneca', 'phase' => 'aguda', 'recommendation' => 'Reducir carga y rango; trabajar sin dolor.'],
                 ],
@@ -201,6 +201,15 @@ class ExerciseExpansionSeeder extends Seeder
                     'Aprieta arriba 1 segundo.',
                     'Baja de forma controlada.',
                 ],
+                'common_errors' => [
+                    'Usar demasiado peso: los extensores son más débiles, empieza ligero.',
+                    'Mover el antebrazo: aíslalo apoyándolo bien.',
+                ],
+                'met_value' => 3.00, 'knowledge_key' => 'reverse_wrist_curl',
+                'contraindications' => [
+                    ['zone' => 'muneca', 'phase' => 'aguda', 'recommendation' => 'Reducir carga y rango; trabajar sin dolor.'],
+                ],
+            ],
                 'common_errors' => [
                     'Usar demasiado peso: los extensores son débiles, empieza ligero.',
                     'Mover el antebrazo: aíslalo apoyándolo bien.',
@@ -226,7 +235,7 @@ class ExerciseExpansionSeeder extends Seeder
                     'Balancear el cuerpo: mantén los codos pegados al torso.',
                     'Rotar la muñeca: el agarre se mantiene neutro.',
                 ],
-                'met_value' => 3.50, 'knowledge_key' => null,
+                'met_value' => 3.50, 'knowledge_key' => 'hammer_curl',
                 'contraindications' => [],
             ],
             [
@@ -245,7 +254,7 @@ class ExerciseExpansionSeeder extends Seeder
                     'Encorvar la espalda: mantén el pecho alto.',
                     'Soltar el agarre antes de tiempo: aprieta con fuerza.',
                 ],
-                'met_value' => 5.00, 'knowledge_key' => null,
+                'met_value' => 5.00, 'knowledge_key' => 'farmers_walk',
                 'contraindications' => [],
             ],
             [
@@ -264,7 +273,7 @@ class ExerciseExpansionSeeder extends Seeder
                     'Hombros totalmente relajados: mantén algo de activación.',
                     'Balancearse: mantén el cuerpo quieto.',
                 ],
-                'met_value' => 3.50, 'knowledge_key' => null,
+                'met_value' => 3.50, 'knowledge_key' => 'dead_hang',
                 'contraindications' => [
                     ['zone' => 'hombro', 'phase' => 'aguda', 'recommendation' => 'Evitar suspensión pasiva total; usar apoyo parcial de pies.'],
                 ],
@@ -285,7 +294,7 @@ class ExerciseExpansionSeeder extends Seeder
                     'Mover el codo: aísla la muñeca.',
                     'Peso excesivo: empieza muy ligero.',
                 ],
-                'met_value' => 2.50, 'knowledge_key' => null,
+                'met_value' => 2.50, 'knowledge_key' => 'wrist_rotation',
                 'contraindications' => [
                     ['zone' => 'muneca', 'phase' => 'aguda', 'recommendation' => 'Realizar sin carga, solo movilidad.'],
                 ],
@@ -310,7 +319,7 @@ class ExerciseExpansionSeeder extends Seeder
                     'Rango corto: busca máxima elevación y estiramiento.',
                     'Rebotar: controla la fase excéntrica.',
                 ],
-                'met_value' => 4.00, 'knowledge_key' => null,
+                'met_value' => 4.00, 'knowledge_key' => 'calf_raise',
                 'contraindications' => [],
             ],
             [
@@ -323,13 +332,13 @@ class ExerciseExpansionSeeder extends Seeder
                     'Sentado con el peso apoyado sobre las rodillas.',
                     'Apoya las puntas de los pies en la plataforma.',
                     'Eleva los talones contrayendo la pantorrilla.',
-                    'Baja controlando hasta estirar.',
+                    'Baja controlando del todo.',
                 ],
                 'common_errors' => [
                     'Rango incompleto: recorrido completo arriba y abajo.',
                     'Velocidad excesiva: trabaja lento.',
                 ],
-                'met_value' => 3.50, 'knowledge_key' => null,
+                'met_value' => 3.50, 'knowledge_key' => 'calf_raise_seated',
                 'contraindications' => [],
             ],
             [
@@ -348,7 +357,7 @@ class ExerciseExpansionSeeder extends Seeder
                     'Apoyarte demasiado en la pared: úsala solo para equilibrio.',
                     'No bajar del todo: estira en cada repetición.',
                 ],
-                'met_value' => 4.00, 'knowledge_key' => null,
+                'met_value' => 4.00, 'knowledge_key' => 'single_leg_calf_raise',
                 'contraindications' => [],
             ],
 
@@ -371,7 +380,7 @@ class ExerciseExpansionSeeder extends Seeder
                     'Levantar la cadera: mantén la pelvis pegada al banco.',
                     'Rango parcial: completa la flexión.',
                 ],
-                'met_value' => 4.00, 'knowledge_key' => null,
+                'met_value' => 4.00, 'knowledge_key' => 'lying_leg_curl',
                 'contraindications' => [],
             ],
             [
@@ -411,7 +420,7 @@ class ExerciseExpansionSeeder extends Seeder
                     'Doblar la cadera: mantén el cuerpo recto de rodillas a hombros.',
                     'Caer sin control: progresa el rango poco a poco.',
                 ],
-                'met_value' => 5.00, 'knowledge_key' => null,
+                'met_value' => 5.00, 'knowledge_key' => 'nordic_curl',
                 'contraindications' => [
                     ['zone' => 'rodilla', 'phase' => 'aguda', 'recommendation' => 'No realizar; sustituir por curl femoral o peso muerto rumano ligero.'],
                 ],
@@ -432,7 +441,7 @@ class ExerciseExpansionSeeder extends Seeder
                     'Redondear la zona lumbar: mantén la columna neutra.',
                     'Bajar más allá del control: limita el rango.',
                 ],
-                'met_value' => 5.00, 'knowledge_key' => null,
+                'met_value' => 5.00, 'knowledge_key' => 'good_morning',
                 'contraindications' => [
                     ['zone' => 'lumbar', 'phase' => 'aguda', 'recommendation' => 'No realizar. Sustituir por curl femoral en máquina.'],
                 ],

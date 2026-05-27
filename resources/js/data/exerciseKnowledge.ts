@@ -26,9 +26,6 @@ export interface ExerciseKnowledge {
   common_errors: string[]
   contraindications: ContraIndication[]
   posture_thresholds: ExerciseThreshold[]
-  // Orientación corporal recomendada frente a la cámara para que los errores clave
-  // del ejercicio sean medibles: 'front' (de frente) o 'side' (de perfil).
-  // Si se omite, el analizador asume 'side'.
   recommended_view?: 'front' | 'side'
   variants: {
     easier: string
@@ -531,6 +528,31 @@ export const EXERCISE_KNOWLEDGE: Record<string, ExerciseKnowledge> = {
     },
   },
 
+  shrugs: {
+    id: 'shrugs',
+    name_es: 'Encogimientos',
+    muscle_primary: ['trapecio superior'],
+    muscle_secondary: ['trapecio medio'],
+    execution_cues: [
+      'Eleva los hombros hacia las orejas sin rotar.',
+      'Mantén los codos extendidos durante todo el movimiento.',
+      'Pausa arriba y aprieta los trapecios 1 segundo.',
+      'Baja de forma controlada hasta el estiramiento completo.',
+    ],
+    common_errors: [
+      'Rotar los hombros: el movimiento es solo vertical.',
+      'Doblar los codos: el trabajo es escapular puro.',
+      'Usar impulso del cuerpo: mantén el torso firme.',
+    ],
+    contraindications: [],
+    posture_thresholds: [],
+    variants: {
+      easier: 'Encogimientos con banda elástica en casa',
+      harder: 'Encogimientos con barra lastrada',
+      home_version: 'Encogimientos con banda o sin peso',
+    },
+  },
+
   face_pull: {
     id: 'face_pull',
     name_es: 'Face Pull',
@@ -552,6 +574,428 @@ export const EXERCISE_KNOWLEDGE: Record<string, ExerciseKnowledge> = {
       easier: 'Con banda de resistencia fijada en puerta',
       harder: 'Con mayor peso y pausa isométrica',
       home_version: 'Con banda en puerta a altura de ojos',
+    },
+  },
+
+  shrug_bar: {
+    id: 'shrug_bar',
+    name_es: 'Encogimientos con barra',
+    muscle_primary: ['trapecio superior'],
+    muscle_secondary: ['trapecio medio'],
+    execution_cues: [
+      'Sujeta la barra con agarre prono a la anchura de hombros.',
+      'Eleva los hombros lo más alto posible.',
+      'Pausa arriba y aprieta los trapecios.',
+      'Desciende controlando el peso.',
+    ],
+    common_errors: [
+      'Encorvar la espalda: mantén el pecho alto.',
+      'Rango incompleto: busca la máxima elevación.',
+    ],
+    contraindications: [],
+    posture_thresholds: [],
+    variants: {
+      easier: 'Encogimientos con mancuernas',
+      harder: 'Encogimientos con barra lastrada',
+      home_version: 'Encogimientos con banda elástica',
+    },
+  },
+
+  shrug_db: {
+    id: 'shrug_db',
+    name_es: 'Encogimientos con mancuernas',
+    muscle_primary: ['trapecio superior'],
+    muscle_secondary: ['trapecio medio'],
+    execution_cues: [
+      'Pies a la anchura de hombros, mancuernas a los lados.',
+      'Eleva los hombros hacia las orejas.',
+      'Mantén la contracción arriba 1 segundo.',
+      'Baja controlando hasta el estiramiento completo.',
+    ],
+    common_errors: [
+      'Rotar los hombros: movimiento solo vertical.',
+      'Doblar los codos: trabajo escapular puro.',
+    ],
+    contraindications: [],
+    posture_thresholds: [],
+    variants: {
+      easier: 'Encogimientos con banda elástica',
+      harder: 'Encogimientos con barra',
+      home_version: 'Encogimientos sin peso o con banda',
+    },
+  },
+
+  shrug_band: {
+    id: 'shrug_band',
+    name_es: 'Encogimientos con banda elástica',
+    muscle_primary: ['trapecio superior'],
+    muscle_secondary: ['trapecio medio'],
+    execution_cues: [
+      'Pisa la banda con ambos pies, sujeta los extremos.',
+      'Eleva los hombros hacia las orejas.',
+      'Aprieta arriba y baja lento.',
+      'Mantén los brazos extendidos.',
+    ],
+    common_errors: [
+      'Doblar los codos: mantén los brazos rectos.',
+      'Banda con poca tensión: ajusta el agarre.',
+    ],
+    contraindications: [],
+    posture_thresholds: [],
+    variants: {
+      easier: 'Sin pesa o con banda ligera',
+      harder: 'Encogimientos con mancuernas o barra',
+      home_version: 'Mismo ejercicio',
+    },
+  },
+
+  y_raises_prone: {
+    id: 'y_raises_prone',
+    name_es: 'Elevación en Y boca abajo',
+    muscle_primary: ['trapecio inferior'],
+    muscle_secondary: ['trapecio medio', 'deltoides posterior'],
+    execution_cues: [
+      'Boca abajo, brazos formando una Y con los pulgares arriba.',
+      'Eleva los brazos manteniendo los pulgares arriba.',
+      'Aprieta entre los omóplatos.',
+      'Baja sin tocar el suelo.',
+    ],
+    common_errors: [
+      'Encoger el cuello: mantén la mirada al suelo.',
+      'Usar impulso: movimiento lento y controlado.',
+    ],
+    contraindications: [],
+    posture_thresholds: [],
+    variants: {
+      easier: 'Con brazos a menor elevación',
+      harder: 'Con mancuernas ligeras',
+      home_version: 'En el suelo sin peso',
+    },
+  },
+
+  wrist_curl: {
+    id: 'wrist_curl',
+    name_es: 'Curl de muñeca con mancuernas',
+    muscle_primary: ['flexores del antebrazo'],
+    muscle_secondary: ['braquial'],
+    execution_cues: [
+      'Apoya el antebrazo en el muslo, palma hacia arriba.',
+      'Deja caer la muñeca y luego flexionarla hacia arriba.',
+      'Aprieta en la parte alta 1 segundo.',
+      'Baja lentamente hasta el estiramiento.',
+    ],
+    common_errors: [
+      'Mover el codo: aísla la muñeca.',
+      'Rango corto: busca el recorrido completo.',
+    ],
+    contraindications: [
+      { zone: 'muneca', phase: 'aguda', recommendation: 'Reducir carga y rango; trabajar sin dolor.' },
+    ],
+    posture_thresholds: [],
+    variants: {
+      easier: 'Sin peso o con banda ligera',
+      harder: 'Con barra o mancuerna más pesada',
+      home_version: 'Con botella de agua',
+    },
+  },
+
+  reverse_wrist_curl: {
+    id: 'reverse_wrist_curl',
+    name_es: 'Curl de muñeca invertido',
+    muscle_primary: ['extensores del antebrazo'],
+    muscle_secondary: ['braquiorradial'],
+    execution_cues: [
+      'Apoya el antebrazo en el muslo, dorso de mano hacia arriba.',
+      'Eleva el dorso de la mano flexionando la muñeca hacia arriba.',
+      'Aprieta arriba 1 segundo.',
+      'Baja de forma controlada.',
+    ],
+    common_errors: [
+      'Usar demasiado peso: los extensores son más débiles.',
+      'Mover el antebrazo: aíslalo bien.',
+    ],
+    contraindications: [
+      { zone: 'muneca', phase: 'aguda', recommendation: 'Reducir carga y rango; trabajar sin dolor.' },
+    ],
+    posture_thresholds: [],
+    variants: {
+      easier: 'Sin peso o con banda ligera',
+      harder: 'Con mancuerna más pesada',
+      home_version: 'Con botella de agua',
+    },
+  },
+
+  hammer_curl: {
+    id: 'hammer_curl',
+    name_es: 'Curl tipo martillo',
+    muscle_primary: ['braquiorradial', 'braquial'],
+    muscle_secondary: ['bíceps braquial'],
+    execution_cues: [
+      'De pie, mancuernas con agarre neutro (palmas enfrentadas).',
+      'Flexiona el codo subiendo la mancuerna hacia el hombro.',
+      'Mantén el agarre neutro durante todo el recorrido.',
+      'Baja controlando el peso.',
+    ],
+    common_errors: [
+      'Balancear el cuerpo: codos pegados al torso.',
+      'Rotar la muñeca: el agarre se mantiene neutro.',
+    ],
+    contraindications: [],
+    posture_thresholds: [],
+    variants: {
+      easier: 'Curl con banda o sin peso',
+      harder: 'Curl predicador o con barra',
+      home_version: 'Con mochila cargada o botellas',
+    },
+  },
+
+  farmers_walk: {
+    id: 'farmers_walk',
+    name_es: 'Caminata del granjero',
+    muscle_primary: ['antebrazos', 'braquiorradial'],
+    muscle_secondary: ['trapecio', 'core', 'glúteo medio'],
+    execution_cues: [
+      'Sujeta una carga pesada en cada mano.',
+      'Camina con torso erguido y core activo.',
+      'Pasos cortos y firmes.',
+      'Mantén la distancia o el tiempo objetivo.',
+    ],
+    common_errors: [
+      'Encorvar la espalda: mantén el pecho alto.',
+      'Soltar el agarre antes de tiempo: aprieta con fuerza.',
+    ],
+    contraindications: [],
+    posture_thresholds: [],
+    variants: {
+      easier: 'Con pesa ruso o mancuernas más ligeras',
+      harder: 'Con más peso o mayor distancia',
+      home_version: 'Con mochila cargada con peso',
+    },
+  },
+
+  dead_hang: {
+    id: 'dead_hang',
+    name_es: 'Suspensión en barra (Dead Hang)',
+    muscle_primary: ['antebrazos', 'braquiorradial'],
+    muscle_secondary: ['dorsal ancho', 'bíceps'],
+    execution_cues: [
+      'Cuelga de una barra con agarre prono.',
+      'Mantén los hombros ligeramente activos.',
+      'Aguanta el tiempo objetivo.',
+      'Baja con control.',
+    ],
+    common_errors: [
+      'Hombros totalmente relajados: mantén algo de activación.',
+      'Balancearse: mantén el cuerpo quieto.',
+    ],
+    contraindications: [
+      { zone: 'hombro', phase: 'aguda', recommendation: 'Evitar suspensión pasiva total; usar apoyo parcial de pies.' },
+    ],
+    posture_thresholds: [],
+    variants: {
+      easier: 'Con los pies apoyados parcialmente',
+      harder: 'Lastre o manga de lastre',
+      home_version: 'En barra de puerta con apoyo de pies',
+    },
+  },
+
+  wrist_rotation: {
+    id: 'wrist_rotation',
+    name_es: 'Rotación de muñeca con mancuerna',
+    muscle_primary: ['pronadores del antebrazo', 'supinadores'],
+    muscle_secondary: ['flexores', 'extensores de muñeca'],
+    execution_cues: [
+      'Apoya el antebrazo en el muslo con la mano fuera de la rodilla.',
+      'Sujeta una mancuerna por un extremo.',
+      'Rota lentamente la muñeca de palma arriba a palma abajo.',
+      'Controla el movimiento en ambas direcciones.',
+    ],
+    common_errors: [
+      'Mover el codo: aísla la muñeca.',
+      'Peso excesivo: empieza muy ligero.',
+    ],
+    contraindications: [
+      { zone: 'muneca', phase: 'aguda', recommendation: 'Realizar sin carga, solo movilidad.' },
+    ],
+    posture_thresholds: [],
+    variants: {
+      easier: 'Sin mancuerna, solo movilidad',
+      harder: 'Con mancuerna más pesada',
+      home_version: 'Con botella pequeña',
+    },
+  },
+
+  calf_raise: {
+    id: 'calf_raise',
+    name_es: 'Elevación de talones',
+    muscle_primary: ['gemelos (gastrocnemio)'],
+    muscle_secondary: ['sóleo'],
+    execution_cues: [
+      'De pie con el borde de los pies en el escalón.',
+      'Eleva los talones lo más alto posible.',
+      'Aprieta los gemelos arriba 1 segundo.',
+      'Baja lento hasta el estiramiento completo.',
+    ],
+    common_errors: [
+      'Rango corto: máxima elevación y estiramiento.',
+      'Rebotar: controla la fase excéntrica.',
+    ],
+    contraindications: [],
+    posture_thresholds: [],
+    variants: {
+      easier: 'Elevación de talones a dos pies con apoyo',
+      harder: 'Elevación a una pierna o con chaleco lastrado',
+      home_version: 'En escalón de casa con apoyo',
+    },
+  },
+
+  calf_raise_seated: {
+    id: 'calf_raise_seated',
+    name_es: 'Elevación de talones sentado',
+    muscle_primary: ['sóleo'],
+    muscle_secondary: ['gemelos'],
+    execution_cues: [
+      'Sentado con el peso apoyado sobre las rodillas.',
+      'Apoya las puntas de los pies en la plataforma.',
+      'Eleva los talones contrayendo la pantorrilla.',
+      'Baja controlando hasta estirar.',
+    ],
+    common_errors: [
+      'Rango incompleto: recorrido completo arriba y abajo.',
+      'Velocidad excesiva: trabaja lento.',
+    ],
+    contraindications: [],
+    posture_thresholds: [],
+    variants: {
+      easier: 'Con menos peso o sin peso',
+      harder: 'Con más peso o pausa en el tope',
+      home_version: 'En silla usando backpack con peso',
+    },
+  },
+
+  single_leg_calf_raise: {
+    id: 'single_leg_calf_raise',
+    name_es: 'Elevación de talón a una pierna',
+    muscle_primary: ['gemelos (gastrocnemio)'],
+    muscle_secondary: ['sóleo'],
+    execution_cues: [
+      'Apóyate en una pared para equilibrarte.',
+      'Sobre una pierna, eleva el talón al máximo.',
+      'Pausa arriba y baja lento.',
+      'Completa las reps y cambia de pierna.',
+    ],
+    common_errors: [
+      'Apoyarte demasiado en la pared: solo para equilibrio.',
+      'No bajar del todo: estira en cada repetición.',
+    ],
+    contraindications: [],
+    posture_thresholds: [],
+    variants: {
+      easier: 'A dos pies con apoyo de pared',
+      harder: 'Con mancuerna o lastre',
+      home_version: 'En escalón con apoyo',
+    },
+  },
+
+  lying_leg_curl: {
+    id: 'lying_leg_curl',
+    name_es: 'Curl femoral tumbado',
+    muscle_primary: ['isquiotibiales'],
+    muscle_secondary: ['glúteo mayor'],
+    execution_cues: [
+      'Tumbado boca abajo con el rodillo sobre los talones.',
+      'Flexiona las rodillas llevando los talones a los glúteos.',
+      'Aprieta arriba 1 segundo.',
+      'Baja de forma controlada sin soltar la carga.',
+    ],
+    common_errors: [
+      'Levantar la cadera: mantén la pelvis pegada al banco.',
+      'Rango parcial: completa la flexión.',
+    ],
+    contraindications: [],
+    posture_thresholds: [],
+    variants: {
+      easier: 'Con menor peso o rango parcial',
+      harder: 'Unilateral o con mayor peso',
+      home_version: 'Con banda de resistencia',
+    },
+  },
+
+  nordic_curl: {
+    id: 'nordic_curl',
+    name_es: 'Curl femoral nórdico',
+    muscle_primary: ['isquiotibiales'],
+    muscle_secondary: ['glúteo mayor'],
+    execution_cues: [
+      'Arrodíllate con los tobillos fijados (alguien o un soporte).',
+      'Baja el torso al frente lo más lento posible.',
+      'Frena con los isquiotibiales hasta donde controles.',
+      'Ayúdate con las manos para volver al inicio.',
+    ],
+    common_errors: [
+      'Doblar la cadera: cuerpo recto de rodillas a hombros.',
+      'Caer sin control: progresa el rango poco a poco.',
+    ],
+    contraindications: [
+      { zone: 'rodilla', phase: 'aguda', recommendation: 'No realizar; sustituir por curl femoral o peso muerto rumano ligero.' },
+    ],
+    posture_thresholds: [],
+    variants: {
+      easier: 'Con asistencia de banda elástica',
+      harder: 'Lastre o rango más amplio',
+      home_version: 'Con compañero que fije los tobillos',
+    },
+  },
+
+  good_morning: {
+    id: 'good_morning',
+    name_es: 'Buenos días con barra',
+    muscle_primary: ['isquiotibiales', 'glúteo mayor'],
+    muscle_secondary: ['erectores espinales', 'core'],
+    execution_cues: [
+      'Barra sobre los trapecios, pies a la anchura de hombros.',
+      'Empuja la cadera atrás inclinando el torso al frente.',
+      'Mantén la espalda neutra y rodillas semiflexionadas.',
+      'Vuelve extendiendo la cadera.',
+    ],
+    common_errors: [
+      'Redondear la zona lumbar: mantén la columna neutra.',
+      'Bajar más allá del control: limita el rango.',
+    ],
+    contraindications: [
+      { zone: 'lumbar', phase: 'aguda', recommendation: 'No realizar. Sustituir por curl femoral en máquina.' },
+    ],
+    posture_thresholds: [],
+    variants: {
+      easier: 'Sin barra, solo con banda o peso corporal',
+      harder: 'Con barra lastrada o déficit',
+      home_version: 'Con banda elástica o sin carga',
+    },
+  },
+
+  hip_hinge: {
+    id: 'hip_hinge',
+    name_es: 'Hip Hinge',
+    muscle_primary: ['glúteo mayor', 'isquiotibiales'],
+    muscle_secondary: ['erectores espinales', 'core'],
+    execution_cues: [
+      'Empuja la cadera hacia atrás como si cerraras una puerta con ella',
+      'Mantén la espalda neutral — no flexiones la columna',
+      'Rodillas ligeramente dobladas',
+      'Vuelve empujando las caderas hacia adelante',
+    ],
+    common_errors: [
+      'Flexión de rodillas excesiva: convierte en sentadilla',
+      'Redondeo lumbar: el patrón hinge requiere espalda neutral',
+    ],
+    contraindications: [
+      { zone: 'lumbar', phase: 'aguda', recommendation: 'No realizar.' },
+    ],
+    posture_thresholds: [],
+    variants: {
+      easier: 'Hip hinge con palo/dowel para feedback de postura',
+      harder: 'Peso muerto con carga progresiva',
+      home_version: 'Hip hinge con peso corporal o mochila',
     },
   },
 
@@ -657,30 +1101,4 @@ export const EXERCISE_KNOWLEDGE: Record<string, ExerciseKnowledge> = {
     },
   },
 
-  hip_hinge: {
-    id: 'hip_hinge',
-    name_es: 'Hip Hinge',
-    muscle_primary: ['glúteo mayor', 'isquiotibiales'],
-    muscle_secondary: ['erectores espinales', 'core'],
-    execution_cues: [
-      'Empuja la cadera hacia atrás como si cerraras una puerta con ella',
-      'Mantén la espalda neutral — no flexiones la columna',
-      'Rodillas ligeramente dobladas',
-      'Vuelve empujando las caderas hacia adelante',
-    ],
-    common_errors: [
-      'Flexión de rodillas excesiva: convierte en sentadilla',
-      'Redondeo lumbar: el patrón hinge requiere espalda neutral',
-    ],
-    contraindications: [
-      { zone: 'lumbar', phase: 'aguda', recommendation: 'No realizar.' },
-    ],
-    posture_thresholds: [],
-    variants: {
-      easier: 'Hip hinge con palo/dowel para feedback de postura',
-      harder: 'Peso muerto con carga progresiva',
-      home_version: 'Hip hinge con peso corporal o mochila',
-    },
-  },
-
-}
+};
