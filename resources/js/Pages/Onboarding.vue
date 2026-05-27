@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useForm, usePage } from '@inertiajs/vue3'
 import GuestLayout from '@/Layouts/GuestLayout.vue'
+import LogoSVG from '@/Components/LogoSVG.vue'
 import type { User } from '@/types'
 
 defineOptions({ layout: GuestLayout })
@@ -21,16 +22,17 @@ const currentImage = computed(() => STEP_IMAGES[step.value % STEP_IMAGES.length]
 
 // ─── Meta por paso ────────────────────────────────────────────────────────────
 const STEP_META = [
-  { eyebrow: 'Bienvenida',       title: 'Construye tu mejor versión.',       sub: 'Un plan científico y personalizado con IA en menos de 3 minutos.' },
-  { eyebrow: 'Datos personales', title: 'Cuéntanos sobre ti.',               sub: 'Estos datos permiten a la IA calibrar la intensidad correcta para ti.' },
-  { eyebrow: 'Nivel de fitness', title: 'Sin trampas, sé honesto.',           sub: 'El sistema escala la dificultad automáticamente cada semana.' },
-  { eyebrow: 'Objetivo',         title: 'Tu meta define el plan.',            sub: 'Define el norte de tu entrenamiento. Puedes cambiarlo cuando quieras.' },
-  { eyebrow: 'Lugar',            title: '¿Dónde entrenas?',                  sub: 'Tu plan se adapta al espacio y equipamiento disponible.' },
-  { eyebrow: 'Equipamiento',     title: 'Entrenamos con lo que tienes.',      sub: 'Tu plan usa solo el equipamiento que tengas disponible.' },
-  { eyebrow: 'Salud',            title: 'Adaptamos sin riesgos.',             sub: 'Conocer tus limitaciones nos permite evitar molestias en cada rutina.' },
-  { eyebrow: 'Disponibilidad',   title: 'Tu tiempo, tu ritmo.',               sub: 'Optimizamos la rutina para que encaje perfectamente en tu agenda.' },
-  { eyebrow: 'Preferencias',     title: '¿Qué quieres trabajar más?',        sub: 'El plan da prioridad a los grupos musculares que elijas.' },
-  { eyebrow: 'Resumen',          title: 'Todo listo.',                        sub: 'Revisa tu perfil y genera tu rutina personalizada con IA.' },
+  { eyebrow: 'Bienvenida',        title: 'Construye tu mejor versión.',        sub: 'Un plan científico y personalizado con IA en menos de 3 minutos.' },
+  { eyebrow: 'Datos personales', title: 'Cuéntanos sobre ti.',                  sub: 'Estos datos permiten a la IA calibrar la intensidad correcta para ti.' },
+  { eyebrow: 'Movilidad',        title: '¿Cómo es tu día a día?',              sub: 'No hablamos de flexibilidad — sino de cuánto te mueves en tu rutina habitual.' },
+  { eyebrow: 'Experiencia',      title: '¿Tienes experiencia?',                sub: 'El sistema adapta la fase de entrada a tu punto de partida real.' },
+  { eyebrow: 'Objetivo',          title: 'Tu meta define el plan.',             sub: 'Define el norte de tu entrenamiento. Puedes cambiarlo cuando quieras.' },
+  { eyebrow: 'Lugar',            title: '¿Dónde entrenas?',                     sub: 'Tu plan se adapta al espacio y equipamiento disponible.' },
+  { eyebrow: 'Equipamiento',     title: 'Entrenamos con lo que tienes.',         sub: 'Tu plan usa solo el equipamiento que tengas disponible.' },
+  { eyebrow: 'Salud',            title: 'Adaptamos sin riesgos.',               sub: 'Conocer tus limitaciones nos permite evitar molestias en cada rutina.' },
+  { eyebrow: 'Tipo de split',    title: '¿Cómo distribuyes tus días?',         sub: 'Cada organización tiene pros y contras. Elige la que mejor encaje en tu semana.' },
+  { eyebrow: 'Preferencias',     title: '¿Qué quieres trabajar más?',          sub: 'El plan da prioridad a los grupos musculares que elijas.' },
+  { eyebrow: 'Resumen',          title: 'Todo listo.',                         sub: 'Revisa tu perfil y genera tu rutina personalizada con IA.' },
 ]
 
 // ─── Labels ───────────────────────────────────────────────────────────────────
@@ -95,9 +97,15 @@ const MOBILITY_LABELS: Record<string, string> = { good: 'Buena', average: 'Regul
 const PLACE_LABELS: Record<string, string> = { gym: 'Gimnasio', home: 'En casa', both: 'Casa y gimnasio' }
 const LEVEL_LABELS: Record<string, string> = Object.fromEntries(LEVEL_OPTS.map(l => [l.id, l.label]))
 const MUSCLE_LABELS: Record<string, string> = Object.fromEntries(MUSCLE_OPTS.map(m => [m.id, m.label]))
+const ACTIVITY_LABELS: Record<string, string> = {
+  sedentary: 'Sedentario',
+  lightly_active: 'Poco activo',
+  active: 'Activo',
+  very_active: 'Muy activo',
+}
 
 // ─── Estado ───────────────────────────────────────────────────────────────────
-const TOTAL_STEPS = 10
+const TOTAL_STEPS = 11
 const step = ref(0)
 const noInjuries = ref(false)
 
@@ -106,7 +114,7 @@ const form = useForm({
   age:                      null as number | null,
   weight_kg:                null as number | null,
   height_cm:                null as number | null,
-  mobility:                 '' as string,
+  activity_level:           '' as string,
   level:                    '' as string,
   goal:                     '' as string,
   place:                    '' as string,
@@ -115,6 +123,9 @@ const form = useForm({
   days_per_week:            null as number | null,
   session_duration_minutes: null as number | null,
   preferred_muscles:        [] as string[],
+  split_type:               'auto' as string,
+  has_trained_before:       null as boolean | null,
+  last_trained:             '' as string,
 })
 
 // ─── Computed ─────────────────────────────────────────────────────────────────
@@ -122,14 +133,15 @@ const canContinue = computed(() => {
   switch (step.value) {
     case 0: return true
     case 1: return true
-    case 2: return !!form.level
-    case 3: return !!form.goal
-    case 4: return !!form.place
-    case 5: return form.equipment.length > 0
-    case 6: return true
-    case 7: return !!form.days_per_week && !!form.session_duration_minutes
+    case 2: return !!form.activity_level
+    case 3: return form.has_trained_before !== null
+    case 4: return !!form.goal
+    case 5: return !!form.place
+    case 6: return form.equipment.length > 0
+    case 7: return true
     case 8: return true
-    case 9: return true
+    case 9: return !!form.days_per_week && !!form.session_duration_minutes
+    case 10: return true
     default: return false
   }
 })
@@ -159,8 +171,44 @@ function goBack(): void {
 }
 
 function submit(): void {
+  localStorage.removeItem('onboarding_draft')
   form.post(route('onboarding.store'))
 }
+
+// ─── Persistencia localStorage ────────────────────────────────────────────────
+const LS_KEY = 'onboarding_draft'
+
+onMounted(() => {
+  try {
+    const raw = localStorage.getItem(LS_KEY)
+    if (!raw) return
+    const draft = JSON.parse(raw) as Record<string, unknown>
+    if (typeof draft.step === 'number') step.value = draft.step
+    const fields: (keyof typeof form)[] = [
+      'name','age','weight_kg','height_cm','mobility','level','goal','place',
+      'equipment','injuries','days_per_week','session_duration_minutes','preferred_muscles',
+    ]
+    for (const f of fields) {
+      if (draft[f] !== undefined) (form as Record<string, unknown>)[f] = draft[f]
+    }
+  } catch { /* ignore corrupt drafts */ }
+})
+
+watch(
+  () => ({
+    step: step.value,
+    name: form.name, age: form.age, weight_kg: form.weight_kg, height_cm: form.height_cm,
+    activity_level: form.activity_level, level: form.level, goal: form.goal, place: form.place,
+    equipment: form.equipment, injuries: form.injuries,
+    days_per_week: form.days_per_week, session_duration_minutes: form.session_duration_minutes,
+    preferred_muscles: form.preferred_muscles, split_type: form.split_type,
+    has_trained_before: form.has_trained_before, last_trained: form.last_trained,
+  }),
+  (val) => {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(val)) } catch { /* quota */ }
+  },
+  { deep: true },
+)
 
 // ─── Toggles ──────────────────────────────────────────────────────────────────
 function toggleEquipment(id: string): void {
@@ -282,9 +330,7 @@ function toNum(e: Event): number | null {
         <div class="absolute inset-0 hidden md:flex flex-col" style="padding:48px;">
           <!-- Logo -->
           <div>
-            <span class="font-black uppercase tracking-tight" style="font-family:'Barlow Condensed',sans-serif;font-size:22px;color:#fff;line-height:1;">
-              Tu Mejor<br><span style="color:#1DF412;">Versión</span>
-            </span>
+            <LogoSVG variant="navbar" size="medium" />
           </div>
 
           <!-- Meta central -->
@@ -432,33 +478,91 @@ function toNum(e: Event): number | null {
               </div>
             </template>
 
-            <!-- ═══ PASO 2: Nivel ═══ -->
+            <!-- ═══ PASO 2: Actividad diaria ═══ -->
             <template v-if="step === 2">
               <div class="flex flex-col gap-3">
-                <button v-for="opt in LEVEL_OPTS" :key="opt.id"
-                  @click="form.level = opt.id"
+                <button v-for="opt in [
+                  { id:'sedentary',       label:'Sedentario',       icon:'🪑', desc:'Paso la mayor parte del día sentado/a (oficina, universidad).' },
+                  { id:'lightly_active',  label:'Poco activo',     icon:'🚶', desc:'Me muevo algo durante el día (5k–8k pasos en promedio).' },
+                  { id:'active',          label:'Activo',           icon:'🏃', desc:'Paso bastante tiempo de pie o caminando (8k–12k pasos).' },
+                  { id:'very_active',     label:'Muy activo',      icon:'💪', desc:'Trabajo físico o hago deporte intenso a diario.' },
+                ]" :key="opt.id"
+                  @click="form.activity_level = opt.id"
                   class="w-full text-left flex items-center gap-4"
                   style="border-radius:14px;padding:18px 20px;cursor:pointer;transition:all 0.15s;border:1.5px solid;"
-                  :style="form.level === opt.id ? 'background:rgba(29,244,18,0.08);border-color:#1DF412;' : 'background:#161616;border-color:rgba(255,255,255,0.06);'">
-                  <div class="flex-shrink-0 flex items-center justify-center" style="width:44px;height:44px;border-radius:12px;transition:all 0.15s;"
-                    :style="form.level === opt.id ? 'background:#1DF412;' : 'background:#242424;'">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" :stroke="form.level === opt.id ? '#000' : '#9CA3AF'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M6 15l6-6 6 6"/>
-                    </svg>
+                  :style="form.activity_level === opt.id ? 'background:rgba(29,244,18,0.08);border-color:#1DF412;' : 'background:#161616;border-color:rgba(255,255,255,0.06);'">
+                  <div class="flex-shrink-0 flex items-center justify-center" style="width:44px;height:44px;border-radius:12px;font-size:22px;transition:all 0.15s;"
+                    :style="form.activity_level === opt.id ? 'background:#1DF412;' : 'background:#242424;'">
+                    <span :style="form.activity_level === opt.id ? 'filter:grayscale(1);' : ''">{{ opt.icon }}</span>
                   </div>
                   <div class="flex-1 min-w-0">
                     <div class="font-bold" style="font-size:16px;letter-spacing:-0.01em;color:#fff;margin-bottom:2px;">{{ opt.label }}</div>
                     <div style="font-size:12px;color:#9CA3AF;line-height:1.4;">{{ opt.desc }}</div>
                   </div>
-                  <div v-if="form.level === opt.id" class="flex-shrink-0 flex items-center justify-center" style="width:24px;height:24px;border-radius:50%;background:#1DF412;">
+                  <div v-if="form.activity_level === opt.id" class="flex-shrink-0 flex items-center justify-center" style="width:24px;height:24px;border-radius:50%;background:#1DF412;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                   </div>
                 </button>
               </div>
             </template>
 
-            <!-- ═══ PASO 3: Objetivo ═══ -->
+            <!-- ═══ PASO 3: Experiencia ═══ -->
             <template v-if="step === 3">
+              <div class="flex flex-col gap-4">
+                <!-- ¿Entrenaste antes? -->
+                <div>
+                  <div style="font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">¿Has entrenado antes?</div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <button
+                      @click="form.has_trained_before = true"
+                      style="border-radius:12px;padding:16px;cursor:pointer;transition:all 0.15s;border:1.5px solid;text-align:center;font-size:15px;font-weight:600;"
+                      :style="form.has_trained_before === true ? 'background:rgba(29,244,18,0.08);border-color:#1DF412;color:#1DF412;' : 'background:#161616;border-color:rgba(255,255,255,0.06);color:#9CA3AF;'">
+                      Sí
+                    </button>
+                    <button
+                      @click="form.has_trained_before = false"
+                      style="border-radius:12px;padding:16px;cursor:pointer;transition:all 0.15s;border:1.5px solid;text-align:center;font-size:15px;font-weight:600;"
+                      :style="form.has_trained_before === false ? 'background:rgba(29,244,18,0.08);border-color:#1DF412;color:#1DF412;' : 'background:#161616;border-color:rgba(255,255,255,0.06);color:#9CA3AF;'">
+                      No, soy nuevo/a
+                    </button>
+                  </div>
+                </div>
+
+                <!-- ¿Cuándo fue el último entrenamiento? -->
+                <div v-if="form.has_trained_before">
+                  <div style="font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">¿Cuándo fue tu último entrenamiento?</div>
+                  <div class="flex flex-col gap-2">
+                    <button v-for="opt in [
+                      { id:'currently', label:'Estoy entrenando ahora',  icon:'🔄' },
+                      { id:'lt_1m',     label:'Hace menos de 1 mes',     icon:'📅' },
+                      { id:'1_3m',      label:'Hace 1 a 3 meses',        icon:'📅' },
+                      { id:'3_6m',      label:'Hace 3 a 6 meses',        icon:'📅' },
+                      { id:'gt_6m',     label:'Hace más de 6 meses',    icon:'📆' },
+                    ]" :key="opt.id"
+                      @click="form.last_trained = opt.id"
+                      class="w-full text-left flex items-center gap-3"
+                      style="border-radius:12px;padding:14px 16px;cursor:pointer;transition:all 0.15s;border:1.5px solid;"
+                      :style="form.last_trained === opt.id ? 'background:rgba(29,244,18,0.08);border-color:#1DF412;' : 'background:#161616;border-color:rgba(255,255,255,0.06);'">
+                      <span style="font-size:18px;">{{ opt.icon }}</span>
+                      <span class="font-semibold" style="font-size:14px;letter-spacing:-0.01em;color:#fff;flex:1;">{{ opt.label }}</span>
+                      <div v-if="form.last_trained === opt.id" class="flex-shrink-0 flex items-center justify-center" style="width:22px;height:22px;border-radius:50%;background:#1DF412;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Nota informativa -->
+                <div v-if="form.has_trained_before === false" style="background:rgba(29,244,18,0.06);border:1px solid rgba(29,244,18,0.2);border-radius:12px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1DF412" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <p style="font-size:13px;color:#D1FAE5;line-height:1.5;margin:0;">
+                    Empezarás con una <strong>fase de adaptación</strong> de 3–4 semanas a menor volumen. Esto prepara tendones y sistema nervioso para evitar lesiones.
+                  </p>
+                </div>
+              </div>
+            </template>
+            <!-- ═══ PASO 5: Objetivo ═══ -->
+            <template v-if="step === 5">
               <div class="flex flex-col gap-2">
                 <button v-for="(label, id) in GOAL_LABELS" :key="id"
                   @click="form.goal = id"
@@ -477,8 +581,8 @@ function toNum(e: Event): number | null {
               </div>
             </template>
 
-            <!-- ═══ PASO 4: Lugar ═══ -->
-            <template v-if="step === 4">
+            <!-- ═══ PASO 6: Lugar ═══ -->
+            <template v-if="step === 6">
               <div class="flex flex-col gap-3">
                 <button v-for="opt in PLACE_OPTS" :key="opt.id"
                   @click="form.place = opt.id"
@@ -500,8 +604,8 @@ function toNum(e: Event): number | null {
               </div>
             </template>
 
-            <!-- ═══ PASO 5: Equipamiento ═══ -->
-            <template v-if="step === 5">
+            <!-- ═══ PASO 7: Equipamiento ═══ -->
+            <template v-if="step === 7">
               <div class="flex flex-wrap gap-2">
                 <button v-for="opt in EQUIPMENT_OPTS" :key="opt.id"
                   @click="toggleEquipment(opt.id)"
@@ -514,9 +618,8 @@ function toNum(e: Event): number | null {
               </div>
             </template>
 
-            <!-- ═══ PASO 6: Lesiones ═══ -->
-            <template v-if="step === 6">
-              <!-- Zonas de lesión -->
+            <!-- ═══ PASO 8: Lesiones ═══ -->
+            <template v-if="step === 8">
               <div style="margin-bottom:16px;">
                 <div style="font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Zonas afectadas</div>
                 <div class="flex flex-wrap gap-2">
@@ -531,7 +634,6 @@ function toNum(e: Event): number | null {
                 </div>
               </div>
 
-              <!-- Descripción por lesión -->
               <div v-if="form.injuries.length" class="flex flex-col gap-3 mb-4">
                 <div v-for="inj in form.injuries" :key="inj.zone"
                   style="background:#161616;border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:12px 14px;">
@@ -548,7 +650,6 @@ function toNum(e: Event): number | null {
                 </div>
               </div>
 
-              <!-- Separador -->
               <div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:16px;">
                 <button @click="selectNoInjuries()"
                   class="w-full text-left flex items-center gap-3"
@@ -566,44 +667,42 @@ function toNum(e: Event): number | null {
               </div>
             </template>
 
-            <!-- ═══ PASO 7: Disponibilidad ═══ -->
-            <template v-if="step === 7">
-              <!-- Días por semana -->
-              <div style="margin-bottom:24px;">
-                <div style="font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Días disponibles por semana</div>
-                <div class="flex gap-2 flex-wrap">
-                  <button v-for="d in [1,2,3,4,5,6,7]" :key="d"
-                    @click="form.days_per_week = d"
-                    style="width:48px;height:48px;border-radius:12px;cursor:pointer;font-size:16px;font-weight:700;transition:all 0.15s;border:1.5px solid;display:flex;align-items:center;justify-content:center;"
-                    :style="form.days_per_week === d
-                      ? 'background:#1DF412;color:#000;border-color:#1DF412;'
-                      : 'background:#161616;color:#9CA3AF;border-color:rgba(255,255,255,0.06);'">
-                    {{ d }}
-                  </button>
-                </div>
-                <p v-if="form.days_per_week" style="font-size:12px;color:#6B7280;margin-top:8px;">
-                  {{ form.days_per_week === 1 ? '1 día a la semana' : `${form.days_per_week} días a la semana` }}
-                </p>
+            <!-- ═══ PASO 9: Tipo de split ═══ -->
+            <template v-if="step === 9">
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px;">
+                <button v-for="opt in SPLIT_OPTS.filter(o => ['auto','full_body','upper_lower','ppl','weider'].includes(o.id))" :key="opt.id"
+                  @click="form.split_type = opt.id"
+                  style="border-radius:14px;padding:16px 14px;cursor:pointer;transition:all 0.15s;border:1.5px solid;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;"
+                  :style="form.split_type === opt.id ? 'background:rgba(29,244,18,0.08);border-color:#1DF412;' : 'background:#161616;border-color:rgba(255,255,255,0.06);'">
+                  <span style="font-size:28px;">{{ opt.icon }}</span>
+                  <div>
+                    <div class="font-bold" style="font-size:13px;letter-spacing:-0.01em;color:#fff;margin-bottom:2px;">{{ opt.label }}</div>
+                    <div style="font-size:10px;color:#9CA3AF;line-height:1.3;">{{ opt.desc }}</div>
+                  </div>
+                  <div v-if="form.split_type === opt.id" class="flex items-center justify-center" style="width:20px;height:20px;border-radius:50%;background:#1DF412;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                </button>
               </div>
-
-              <!-- Duración por sesión -->
-              <div>
-                <div style="font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Duración por sesión</div>
-                <div class="flex flex-wrap gap-2">
-                  <button v-for="opt in DURATION_OPTS" :key="opt.value"
-                    @click="form.session_duration_minutes = opt.value"
-                    style="border-radius:12px;padding:12px 18px;cursor:pointer;font-size:14px;font-weight:600;transition:all 0.15s;border:1.5px solid;"
-                    :style="form.session_duration_minutes === opt.value
-                      ? 'background:#1DF412;color:#000;border-color:#1DF412;'
-                      : 'background:#161616;color:#9CA3AF;border-color:rgba(255,255,255,0.06);'">
-                    {{ opt.label }}
-                  </button>
-                </div>
+              <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+                <button v-for="opt in SPLIT_OPTS.filter(o => ['upper_lower_emphasis','ppl_hybrid'].includes(o.id))" :key="opt.id"
+                  @click="form.split_type = opt.id"
+                  style="border-radius:12px;padding:14px;cursor:pointer;transition:all 0.15s;border:1.5px solid;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;"
+                  :style="form.split_type === opt.id ? 'background:rgba(29,244,18,0.08);border-color:#1DF412;' : 'background:#161616;border-color:rgba(255,255,255,0.06);'">
+                  <span style="font-size:22px;">{{ opt.icon }}</span>
+                  <div>
+                    <div class="font-bold" style="font-size:12px;letter-spacing:-0.01em;color:#fff;margin-bottom:1px;">{{ opt.label }}</div>
+                    <div style="font-size:9px;color:#9CA3AF;line-height:1.3;">{{ opt.desc }}</div>
+                  </div>
+                  <div v-if="form.split_type === opt.id" class="flex items-center justify-center" style="width:18px;height:18px;border-radius:50%;background:#1DF412;">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                </button>
               </div>
             </template>
 
-            <!-- ═══ PASO 8: Preferencias musculares ═══ -->
-            <template v-if="step === 8">
+            <!-- ═══ PASO 10: Preferencias musculares ═══ -->
+            <template v-if="step === 10">
               <div class="flex flex-wrap gap-2">
                 <button v-for="opt in MUSCLE_OPTS" :key="opt.id"
                   @click="toggleMuscle(opt.id)"
@@ -617,17 +716,16 @@ function toNum(e: Event): number | null {
               <p style="font-size:12px;color:#4B5563;margin-top:16px;">Selecciona los grupos que quieras priorizar (opcional)</p>
             </template>
 
-            <!-- ═══ PASO 9: Resumen ═══ -->
-            <template v-if="step === 9">
+            <!-- ═══ PASO 11: Resumen ═══ -->
+            <template v-if="step === 11">
               <div class="flex flex-col gap-3">
 
-                <!-- Fila de resumen -->
                 <template v-for="row in [
-                  { label: 'Nombre',    value: form.name || '—' },
-                  { label: 'Nivel',     value: LEVEL_LABELS[form.level] || '—' },
-                  { label: 'Objetivo',  value: GOAL_LABELS[form.goal] || '—' },
-                  { label: 'Lugar',     value: PLACE_LABELS[form.place] || '—' },
-                  { label: 'Movilidad', value: MOBILITY_LABELS[form.mobility] || '—' },
+                  { label: 'Nombre',          value: form.name || '—' },
+                  { label: 'Nivel',            value: LEVEL_LABELS[form.level] || '—' },
+                  { label: 'Objetivo',         value: GOAL_LABELS[form.goal] || '—' },
+                  { label: 'Actividad',        value: ACTIVITY_LABELS[form.activity_level] || '—' },
+                  { label: 'Lugar',            value: PLACE_LABELS[form.place] || '—' },
                 ]" :key="row.label">
                   <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
                     <span style="font-size:13px;color:#6B7280;">{{ row.label }}</span>
@@ -664,11 +762,10 @@ function toNum(e: Event): number | null {
                   </span>
                 </div>
 
-                <!-- Nota IA -->
                 <div style="background:rgba(29,244,18,0.06);border:1px solid rgba(29,244,18,0.2);border-radius:14px;padding:14px 16px;margin-top:4px;display:flex;gap:10px;align-items:flex-start;">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1DF412" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                   <p style="font-size:13px;color:#D1FAE5;line-height:1.5;margin:0;">
-                    La IA usará estos datos para generar una rutina óptima para ti. Puede ajustar la cantidad de días para maximizar los resultados.
+                    La IA diseñará tus {{ form.days_per_week ?? '' }} sesiones semanales optimizadas para tu objetivo. Los días de entrenamiento que elegiste serán respetados.
                   </p>
                 </div>
               </div>
