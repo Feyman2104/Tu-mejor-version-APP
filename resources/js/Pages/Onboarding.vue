@@ -268,6 +268,11 @@ watch(() => step.value, (newStep) => {
   }
 })
 
+// Reset training_days when user changes days_per_week before reaching step 10
+watch(() => form.days_per_week, () => {
+  if (step.value < 10) form.training_days = []
+})
+
 // ─── Toggles ──────────────────────────────────────────────────────────────────
 function toggleEquipment(id: string): void {
   if (id === 'none') {
