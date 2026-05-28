@@ -481,9 +481,14 @@ PROMPT;
             'is_active'       => true,
         ]);
 
+        $trainingDays = array_values(array_filter(
+            array_map('intval', $this->user->training_days ?? []),
+            fn ($d) => $d >= 1 && $d <= 7
+        ));
+
         foreach (array_values($data['days']) as $index => $dayData) {
             $day = $routine->days()->create([
-                'day_number' => $dayData['day_number'] ?? $index + 1,
+                'day_number' => $trainingDays[$index] ?? ($dayData['day_number'] ?? $index + 1),
                 'name'       => $dayData['name'] ?? 'Día ' . ($index + 1),
                 'focus'      => $dayData['focus'] ?? 'full_body',
             ]);
@@ -573,6 +578,11 @@ PROMPT;
             'cardio'    => 'Cardio / Acondicionamiento',
         ];
 
+        $trainingDays = array_values(array_filter(
+            array_map('intval', $this->user->training_days ?? []),
+            fn ($d) => $d >= 1 && $d <= 7
+        ));
+
         $this->user->routines()->update(['is_active' => false]);
 
         $routine = $this->user->routines()->create([
@@ -588,7 +598,7 @@ PROMPT;
 
         foreach ($focusByDay as $i => $focus) {
             $day = $routine->days()->create([
-                'day_number' => $i + 1,
+                'day_number' => $trainingDays[$i] ?? ($i + 1),
                 'name'       => 'Día ' . ($i + 1) . ' · ' . ($focusLabels[$focus] ?? 'Entrenamiento'),
                 'focus'      => $focus,
             ]);

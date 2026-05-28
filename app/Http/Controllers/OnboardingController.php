@@ -39,8 +39,8 @@ class OnboardingController extends Controller
             'split_type'               => ['nullable', 'in:auto,full_body,upper_lower,ppl,weider'],
             'has_trained_before'       => ['nullable', 'boolean'],
             'last_trained'             => ['nullable', 'in:never,currently,lt_1m,1_3m,3_6m,gt_6m'],
-            'training_days'            => ['required', 'array', 'min:1', 'max:7'],
-            'training_days.*'          => ['integer', 'between:1,7', 'distinct'],
+            'training_days'            => ['required', 'array', 'min:1', 'max:7', 'distinct'],
+            'training_days.*'          => ['integer', 'between:1,7'],
         ]);
 
         $user = $request->user();

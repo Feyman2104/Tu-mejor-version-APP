@@ -242,6 +242,7 @@ onMounted(() => {
       if (draft[f] !== undefined) (form as Record<string, unknown>)[f] = draft[f]
     }
   } catch { /* ignore corrupt drafts */ }
+  _mounting = false
 })
 
 watch(
@@ -269,8 +270,10 @@ watch(() => step.value, (newStep) => {
 })
 
 // Reset training_days when user changes days_per_week before reaching step 10
+// _mounting suppresses this watch during the onMounted localStorage restore
+let _mounting = true
 watch(() => form.days_per_week, () => {
-  if (step.value < 10) form.training_days = []
+  if (!_mounting && step.value < 10) form.training_days = []
 })
 
 // ─── Toggles ──────────────────────────────────────────────────────────────────
