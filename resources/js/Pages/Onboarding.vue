@@ -22,19 +22,20 @@ const currentPanel = computed(() => STEP_PANELS[step.value % STEP_PANELS.length]
 
 // ─── Meta por paso ────────────────────────────────────────────────────────────
 const STEP_META = [
-  { eyebrow: 'Bienvenida',        title: 'Construye tu mejor versión.',        sub: 'Un plan científico y personalizado con IA en menos de 3 minutos.' },
-  { eyebrow: 'Datos personales', title: 'Cuéntanos sobre ti.',                  sub: 'Estos datos permiten a la IA calibrar la intensidad correcta para ti.' },
-  { eyebrow: 'Actividad',        title: '¿Cómo es tu día a día?',              sub: 'No hablamos de flexibilidad — sino de cuánto te mueves en tu rutina habitual.' },
-  { eyebrow: 'Experiencia',      title: '¿Tienes experiencia?',                sub: 'El sistema adapta la fase de entrada a tu punto de partida real.' },
-  { eyebrow: 'Nivel',            title: '¿Cuál es tu nivel?',                  sub: 'El sistema escala la dificultad automáticamente cada semana.' },
-  { eyebrow: 'Objetivo',          title: 'Tu meta define el plan.',             sub: 'Define el norte de tu entrenamiento. Puedes cambiarlo cuando quieras.' },
-  { eyebrow: 'Lugar',            title: '¿Dónde entrenas?',                     sub: 'Tu plan se adapta al espacio y equipamiento disponible.' },
-  { eyebrow: 'Equipamiento',     title: 'Entrenamos con lo que tienes.',         sub: 'Tu plan usa solo el equipamiento que tengas disponible.' },
-  { eyebrow: 'Salud',            title: 'Adaptamos sin riesgos.',               sub: 'Conocer tus limitaciones nos permite evitar molestias en cada rutina.' },
-  { eyebrow: 'Disponibilidad',   title: '¿Cuánto tiempo tienes?',              sub: 'Ajustamos el volumen a los días y minutos que puedas dedicar.' },
-  { eyebrow: 'Tipo de split',    title: '¿Cómo distribuyes tus días?',         sub: 'Cada organización tiene pros y contras. Elige la que mejor encaje en tu semana.' },
-  { eyebrow: 'Preferencias',     title: '¿Qué quieres trabajar más?',          sub: 'El plan da prioridad a los grupos musculares que elijas.' },
-  { eyebrow: 'Resumen',          title: 'Todo listo.',                         sub: 'Revisa tu perfil y genera tu rutina personalizada con IA.' },
+  { eyebrow: 'Bienvenida',          title: 'Construye tu mejor versión.',        sub: 'Un plan científico y personalizado con IA en menos de 3 minutos.' },
+  { eyebrow: 'Datos personales',    title: 'Cuéntanos sobre ti.',                sub: 'Estos datos permiten a la IA calibrar la intensidad correcta para ti.' },
+  { eyebrow: 'Actividad',           title: '¿Cómo es tu día a día?',             sub: 'No hablamos de flexibilidad — sino de cuánto te mueves en tu rutina habitual.' },
+  { eyebrow: 'Experiencia',         title: '¿Tienes experiencia?',               sub: 'El sistema adapta la fase de entrada a tu punto de partida real.' },
+  { eyebrow: 'Nivel',               title: '¿Cuál es tu nivel?',                 sub: 'El sistema escala la dificultad automáticamente cada semana.' },
+  { eyebrow: 'Objetivo',            title: 'Tu meta define el plan.',            sub: 'Define el norte de tu entrenamiento. Puedes cambiarlo cuando quieras.' },
+  { eyebrow: 'Lugar',               title: '¿Dónde entrenas?',                   sub: 'Tu plan se adapta al espacio y equipamiento disponible.' },
+  { eyebrow: 'Equipamiento',        title: 'Entrenamos con lo que tienes.',      sub: 'Tu plan usa solo el equipamiento que tengas disponible.' },
+  { eyebrow: 'Salud',               title: 'Adaptamos sin riesgos.',             sub: 'Conocer tus limitaciones nos permite evitar molestias en cada rutina.' },
+  { eyebrow: 'Disponibilidad',      title: '¿Cuánto tiempo tienes?',             sub: 'Ajustamos el volumen a los días y minutos que puedas dedicar.' },
+  { eyebrow: 'Tus días de entreno', title: '¿Qué días\nentrenas?',               sub: 'Los días elegidos definen cuándo aparece tu rutina en el dashboard.' },
+  { eyebrow: 'Tipo de split',       title: '¿Cómo distribuyes tus días?',        sub: 'Cada organización tiene pros y contras. Elige la que mejor encaje en tu semana.' },
+  { eyebrow: 'Preferencias',        title: '¿Qué quieres trabajar más?',         sub: 'El plan da prioridad a los grupos musculares que elijas.' },
+  { eyebrow: 'Resumen',             title: 'Todo listo.',                        sub: 'Revisa tu perfil y genera tu rutina personalizada con IA.' },
 ]
 
 // ─── Labels ───────────────────────────────────────────────────────────────────
@@ -113,8 +114,33 @@ const ACTIVITY_LABELS: Record<string, string> = {
   very_active: 'Muy activo',
 }
 
+const DAYS = [
+  { iso: 1, initial: 'L', name: 'Lunes',      type: 'Entre semana'  },
+  { iso: 2, initial: 'M', name: 'Martes',     type: 'Entre semana'  },
+  { iso: 3, initial: 'X', name: 'Miércoles',  type: 'Entre semana'  },
+  { iso: 4, initial: 'J', name: 'Jueves',     type: 'Entre semana'  },
+  { iso: 5, initial: 'V', name: 'Viernes',    type: 'Entre semana'  },
+  { iso: 6, initial: 'S', name: 'Sábado',     type: 'Fin de semana' },
+  { iso: 7, initial: 'D', name: 'Domingo',    type: 'Fin de semana' },
+] as const
+
+const DAYS_LABELS: Record<number, string> = {
+  1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves',
+  5: 'Viernes', 6: 'Sábado', 7: 'Domingo',
+}
+
+const DEFAULT_DAYS_MAP: Record<number, number[]> = {
+  1: [3],
+  2: [1, 4],
+  3: [1, 3, 5],
+  4: [1, 2, 4, 5],
+  5: [1, 2, 3, 4, 5],
+  6: [1, 2, 3, 4, 5, 6],
+  7: [1, 2, 3, 4, 5, 6, 7],
+}
+
 // ─── Estado ───────────────────────────────────────────────────────────────────
-const TOTAL_STEPS = 13
+const TOTAL_STEPS = 14
 const step = ref(0)
 const noInjuries = ref(false)
 
@@ -135,6 +161,7 @@ const form = useForm({
   session_duration_minutes: null as number | null,
   preferred_muscles:        [] as string[],
   split_type:               'auto' as string,
+  training_days:            [] as number[],
   has_trained_before:       null as boolean | null,
   last_trained:             '' as string,
 })
@@ -142,24 +169,33 @@ const form = useForm({
 // ─── Computed ─────────────────────────────────────────────────────────────────
 const canContinue = computed(() => {
   switch (step.value) {
-    case 0: return true
-    case 1: return true
-    case 2: return !!form.activity_level
-    case 3: return form.has_trained_before !== null
-    case 4: return !!form.level
-    case 5: return !!form.goal
-    case 6: return !!form.place
-    case 7: return form.equipment.length > 0
-    case 8: return true
-    case 9: return !!form.days_per_week && !!form.session_duration_minutes
-    case 10: return true
+    case 0:  return true
+    case 1:  return true
+    case 2:  return !!form.activity_level
+    case 3:  return form.has_trained_before !== null
+    case 4:  return !!form.level
+    case 5:  return !!form.goal
+    case 6:  return !!form.place
+    case 7:  return form.equipment.length > 0
+    case 8:  return true
+    case 9:  return !!form.days_per_week && !!form.session_duration_minutes
+    case 10: return form.training_days.length >= 1
     case 11: return true
     case 12: return true
+    case 13: return true
     default: return false
   }
 })
 
 const progressPct = computed(() => ((step.value + 1) / TOTAL_STEPS) * 100)
+
+const defaultDays = computed<number[]>(() =>
+  DEFAULT_DAYS_MAP[form.days_per_week ?? 3] ?? [1, 3, 5]
+)
+
+const summaryDays = computed(() =>
+  form.training_days.map(d => DAYS_LABELS[d]).join(' · ') || '—'
+)
 
 const firstName = computed(() => (user.value?.name ?? form.name)?.split(' ')[0] || 'campeón')
 
@@ -200,6 +236,7 @@ onMounted(() => {
     const fields: (keyof typeof form)[] = [
       'name','age','sex','weight_kg','height_cm','mobility','level','goal','place',
       'equipment','injuries','days_per_week','session_duration_minutes','preferred_muscles',
+      'training_days',
     ]
     for (const f of fields) {
       if (draft[f] !== undefined) (form as Record<string, unknown>)[f] = draft[f]
@@ -217,12 +254,19 @@ watch(
     days_per_week: form.days_per_week, session_duration_minutes: form.session_duration_minutes,
     preferred_muscles: form.preferred_muscles, split_type: form.split_type,
     has_trained_before: form.has_trained_before, last_trained: form.last_trained,
+    training_days: form.training_days,
   }),
   (val) => {
     try { localStorage.setItem(LS_KEY, JSON.stringify(val)) } catch { /* quota */ }
   },
   { deep: true },
 )
+
+watch(() => step.value, (newStep) => {
+  if (newStep === 10 && form.training_days.length === 0) {
+    form.training_days = [...defaultDays.value]
+  }
+})
 
 // ─── Toggles ──────────────────────────────────────────────────────────────────
 function toggleEquipment(id: string): void {
@@ -260,6 +304,17 @@ function toggleMuscle(id: string): void {
   } else {
     form.preferred_muscles = [...form.preferred_muscles, id]
   }
+}
+
+function toggleDay(iso: number): void {
+  const idx = form.training_days.indexOf(iso)
+  if (idx === -1) {
+    form.training_days.push(iso)
+    form.training_days.sort((a, b) => a - b)
+  } else {
+    form.training_days.splice(idx, 1)
+  }
+  form.days_per_week = form.training_days.length
 }
 
 function toNum(e: Event): number | null {
@@ -762,8 +817,74 @@ function toNum(e: Event): number | null {
               </div>
             </template>
 
-            <!-- ═══ PASO 10: Tipo de split ═══ -->
+            <!-- ═══ PASO 10: Días de entreno ═══ -->
             <template v-if="step === 10">
+              <div class="flex flex-col gap-2">
+                <button
+                  v-for="day in DAYS"
+                  :key="day.iso"
+                  type="button"
+                  class="w-full flex items-center justify-between"
+                  style="border-radius:14px;padding:14px 16px;cursor:pointer;transition:all 0.15s;border:1.5px solid;"
+                  :style="form.training_days.includes(day.iso)
+                    ? 'background:rgba(29,244,18,0.08);border-color:#1DF412;'
+                    : 'background:#161616;border-color:rgba(255,255,255,0.06);'"
+                  @click="toggleDay(day.iso)"
+                >
+                  <div class="flex items-center gap-3">
+                    <div
+                      class="flex items-center justify-center flex-shrink-0"
+                      style="width:36px;height:36px;border-radius:10px;font-size:15px;font-weight:800;font-family:'Barlow Condensed',sans-serif;transition:all 0.15s;border:1.5px solid;"
+                      :style="form.training_days.includes(day.iso)
+                        ? 'background:rgba(29,244,18,0.15);border-color:#1DF412;color:#1DF412;'
+                        : 'background:#1a1a1a;border-color:#2a2a2a;color:#444;'"
+                    >
+                      {{ day.initial }}
+                    </div>
+                    <div>
+                      <div
+                        class="font-semibold"
+                        style="font-size:15px;"
+                        :style="form.training_days.includes(day.iso) ? 'color:#fff;' : 'color:#888;'"
+                      >{{ day.name }}</div>
+                      <div
+                        style="font-size:11px;"
+                        :style="form.training_days.includes(day.iso) ? 'color:rgba(29,244,18,0.6);' : 'color:#444;'"
+                      >{{ day.type }}</div>
+                    </div>
+                  </div>
+                  <div
+                    class="flex items-center justify-center flex-shrink-0"
+                    style="width:22px;height:22px;border-radius:50%;transition:all 0.15s;"
+                    :style="form.training_days.includes(day.iso)
+                      ? 'background:#1DF412;border:2px solid #1DF412;'
+                      : 'background:#1a1a1a;border:2px solid #2a2a2a;'"
+                  >
+                    <svg v-if="form.training_days.includes(day.iso)" width="12" height="10" viewBox="0 0 12 10" fill="none">
+                      <path d="M1 5L4.5 8.5L11 1.5" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </div>
+                </button>
+              </div>
+
+              <!-- Resumen reactivo -->
+              <div
+                v-if="form.training_days.length"
+                style="margin-top:16px;background:#0d0d0d;border:1px solid #1a1a1a;border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:10px;"
+              >
+                <div style="width:8px;height:8px;border-radius:50%;background:#1DF412;flex-shrink:0;"></div>
+                <div style="font-size:13px;color:#aaa;">
+                  <strong style="color:#1DF412;">{{ summaryDays }}</strong>
+                  <span> — {{ form.training_days.length }} {{ form.training_days.length === 1 ? 'día' : 'días' }}/semana</span>
+                </div>
+              </div>
+              <p v-else style="font-size:12px;color:#6B7280;margin-top:12px;">
+                Selecciona al menos un día para continuar
+              </p>
+            </template>
+
+            <!-- ═══ PASO 11: Tipo de split ═══ -->
+            <template v-if="step === 11">
               <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
                 <button v-for="opt in SPLIT_OPTS" :key="opt.id"
                   @click="form.split_type = opt.id"
@@ -781,8 +902,8 @@ function toNum(e: Event): number | null {
               </div>
             </template>
 
-            <!-- ═══ PASO 11: Preferencias musculares ═══ -->
-            <template v-if="step === 11">
+            <!-- ═══ PASO 12: Preferencias musculares ═══ -->
+            <template v-if="step === 12">
               <div class="flex flex-wrap gap-2">
                 <button v-for="opt in MUSCLE_OPTS" :key="opt.id"
                   @click="toggleMuscle(opt.id)"
@@ -796,8 +917,8 @@ function toNum(e: Event): number | null {
               <p style="font-size:12px;color:#6B7280;margin-top:16px;">Selecciona los grupos que quieras priorizar (opcional)</p>
             </template>
 
-            <!-- ═══ PASO 12: Resumen ═══ -->
-            <template v-if="step === 12">
+            <!-- ═══ PASO 13: Resumen ═══ -->
+            <template v-if="step === 13">
               <div class="flex flex-col gap-3">
 
                 <template v-for="row in [
@@ -829,6 +950,13 @@ function toNum(e: Event): number | null {
                   </span>
                 </div>
 
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+                  <span style="font-size:13px;color:#6B7280;">Días de entreno</span>
+                  <span style="font-size:14px;font-weight:600;color:#1DF412;text-align:right;max-width:240px;">
+                    {{ summaryDays }}
+                  </span>
+                </div>
+
                 <div v-if="form.injuries.length" style="display:flex;justify-content:space-between;align-items:flex-start;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
                   <span style="font-size:13px;color:#6B7280;">Lesiones</span>
                   <span style="font-size:14px;font-weight:600;color:#FCA5A5;text-align:right;max-width:200px;">
@@ -846,7 +974,7 @@ function toNum(e: Event): number | null {
                 <div style="background:rgba(29,244,18,0.06);border:1px solid rgba(29,244,18,0.2);border-radius:14px;padding:14px 16px;margin-top:4px;display:flex;gap:10px;align-items:flex-start;">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1DF412" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                   <p style="font-size:13px;color:#D1FAE5;line-height:1.5;margin:0;">
-                    La IA diseñará tus {{ form.days_per_week ?? '' }} sesiones semanales optimizadas para tu objetivo. Los días de entrenamiento que elegiste serán respetados.
+                    La IA diseñará tus <strong>{{ form.training_days.length }}</strong> sesiones semanales para {{ summaryDays }}. El dashboard mostrará tu rutina exactamente esos días.
                   </p>
                 </div>
               </div>
