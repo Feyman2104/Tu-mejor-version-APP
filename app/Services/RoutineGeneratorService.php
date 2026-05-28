@@ -23,6 +23,7 @@ class RoutineGeneratorService
     private bool $isNewUser;
     private ?string $lastTrained;
     private array $injuries;
+    private array $trainingDays = [];
 
     public function __construct(private readonly User $user)
     {
@@ -49,6 +50,12 @@ class RoutineGeneratorService
             'weight_kg'   => $this->user->weight_kg,
             'session_min' => $this->user->session_duration_minutes ?? 60,
         ];
+
+        $rawDays = $this->user->training_days ?? [];
+        $this->trainingDays = array_values(array_filter(
+            array_map('intval', $rawDays),
+            fn ($d) => $d >= 1 && $d <= 7
+        ));
 
         $this->buildExercisePool();
     }
@@ -148,7 +155,7 @@ class RoutineGeneratorService
 
             foreach ($days as $dayIndex => $dayData) {
                 $day = $routine->days()->create([
-                    'day_number' => $dayIndex + 1,
+                    'day_number' => $this->trainingDays[$dayIndex] ?? ($dayIndex + 1),
                     'name'       => $dayData['name'],
                     'focus'      => $dayData['focus'],
                 ]);
