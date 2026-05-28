@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\SocialiteController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExerciseController;
+use App\Http\Controllers\NutritionController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PostureController;
 use App\Http\Controllers\ProgressController;

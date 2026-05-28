@@ -100,8 +100,14 @@ class AICoachService
             default => 'poco activo',
         };
 
+        // Mifflin-St Jeor: hombre +5, mujer -161, otro/desconocido promedio
+        $bmrOffset = match ($user->sex ?? 'other') {
+            'male'   => 5,
+            'female' => -161,
+            default  => -78,
+        };
         $bmr = $user->weight_kg && $user->height_cm
-            ? round((10 * $user->weight_kg) + (6.25 * $user->height_cm) - (5 * $age) + 5)
+            ? round((10 * $user->weight_kg) + (6.25 * $user->height_cm) - (5 * $age) + $bmrOffset)
             : null;
 
         $tdee = $bmr
@@ -128,20 +134,28 @@ class AICoachService
         }
 
         $routineInfo = '';
-        $activeRoutine = $user->routines()->where('is_active', true)->with('days.exercises')->first();
+        $activeRoutine = $user->routines()->where('is_active', true)->with('days.exercises.exercise')->first();
         if ($activeRoutine) {
             $todayDay = $activeRoutine->days->first();
             if ($todayDay) {
-                $exerciseNames = $todayDay->exercises->take(5)->map(fn ($e) => $e->exercise->name ?? 'ejercicio')->join(', ');
+                $exerciseNames = $todayDay->exercises->take(5)->map(fn ($e) => $e->exercise?->name ?? 'ejercicio')->join(', ');
                 $routineInfo = "RUTINA ACTIVA: {$activeRoutine->name} | Día de hoy: {$todayDay->name} | Ejercicios: {$exerciseNames}";
             }
         }
+
+        $sexLabel = match ($user->sex ?? null) {
+            'male'   => 'Hombre',
+            'female' => 'Mujer',
+            'other'  => 'Otro',
+            default  => 'No especificado',
+        };
 
         $prompt = <<<PROMPT
 Eres "Coach IA", el entrenador personal y asesor de nutrición de "Tu Mejor Versión". Eres empático, directo y práctico — como un amigo que sabe mucho de fitness, no un artículo universitario.
 
 PERFIL DEL USUARIO:
 Nombre: {$user->name}
+Sexo: {$sexLabel}
 Edad: {$age} años
 Nivel: {$levelLabel}
 Objetivo: {$goalLabel}

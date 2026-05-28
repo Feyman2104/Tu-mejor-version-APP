@@ -17,7 +17,7 @@ class User extends Authenticatable
         'role', 'level', 'goal',
         'equipment', 'injuries', 'avatar',
         'onboarding_completed_at',
-        'age', 'weight_kg', 'height_cm', 'mobility', 'activity_level',
+        'age', 'sex', 'weight_kg', 'height_cm', 'mobility', 'activity_level',
         'place', 'days_per_week', 'session_duration_minutes', 'preferred_muscles',
         'split_type', 'has_trained_before', 'last_trained',
     ];
@@ -46,4 +46,5 @@ class User extends Authenticatable
     public function workoutLogs(): HasMany  { return $this->hasMany(WorkoutLog::class); }
     public function progressEntries(): HasMany { return $this->hasMany(ProgressEntry::class); }
     public function chatMessages(): HasMany { return $this->hasMany(ChatMessage::class); }
+    public function dietPlans(): HasMany    { return $this->hasMany(DietPlan::class); }
 }

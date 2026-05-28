@@ -24,12 +24,14 @@ const currentImage = computed(() => STEP_IMAGES[step.value % STEP_IMAGES.length]
 const STEP_META = [
   { eyebrow: 'Bienvenida',        title: 'Construye tu mejor versión.',        sub: 'Un plan científico y personalizado con IA en menos de 3 minutos.' },
   { eyebrow: 'Datos personales', title: 'Cuéntanos sobre ti.',                  sub: 'Estos datos permiten a la IA calibrar la intensidad correcta para ti.' },
-  { eyebrow: 'Movilidad',        title: '¿Cómo es tu día a día?',              sub: 'No hablamos de flexibilidad — sino de cuánto te mueves en tu rutina habitual.' },
+  { eyebrow: 'Actividad',        title: '¿Cómo es tu día a día?',              sub: 'No hablamos de flexibilidad — sino de cuánto te mueves en tu rutina habitual.' },
   { eyebrow: 'Experiencia',      title: '¿Tienes experiencia?',                sub: 'El sistema adapta la fase de entrada a tu punto de partida real.' },
+  { eyebrow: 'Nivel',            title: '¿Cuál es tu nivel?',                  sub: 'El sistema escala la dificultad automáticamente cada semana.' },
   { eyebrow: 'Objetivo',          title: 'Tu meta define el plan.',             sub: 'Define el norte de tu entrenamiento. Puedes cambiarlo cuando quieras.' },
   { eyebrow: 'Lugar',            title: '¿Dónde entrenas?',                     sub: 'Tu plan se adapta al espacio y equipamiento disponible.' },
   { eyebrow: 'Equipamiento',     title: 'Entrenamos con lo que tienes.',         sub: 'Tu plan usa solo el equipamiento que tengas disponible.' },
   { eyebrow: 'Salud',            title: 'Adaptamos sin riesgos.',               sub: 'Conocer tus limitaciones nos permite evitar molestias en cada rutina.' },
+  { eyebrow: 'Disponibilidad',   title: '¿Cuánto tiempo tienes?',              sub: 'Ajustamos el volumen a los días y minutos que puedas dedicar.' },
   { eyebrow: 'Tipo de split',    title: '¿Cómo distribuyes tus días?',         sub: 'Cada organización tiene pros y contras. Elige la que mejor encaje en tu semana.' },
   { eyebrow: 'Preferencias',     title: '¿Qué quieres trabajar más?',          sub: 'El plan da prioridad a los grupos musculares que elijas.' },
   { eyebrow: 'Resumen',          title: 'Todo listo.',                         sub: 'Revisa tu perfil y genera tu rutina personalizada con IA.' },
@@ -56,8 +58,6 @@ const SPLIT_OPTS = [
   { id: 'upper_lower',       label: 'Torso-Pierna', icon: '🦿', desc: '2 arriba / 2 abajo' },
   { id: 'ppl',              label: 'Push/Pull/Legs', icon: '💪', desc: '3 grupos' },
   { id: 'weider',           label: 'Dividida',      icon: '📋', desc: 'Grupo por día' },
-  { id: 'upper_lower_emphasis', label: 'Énfasis piernas', icon: '🦵', desc: '3 pierna / 2 torso' },
-  { id: 'ppl_hybrid',       label: 'Híbrido PPL',   icon: '🔄', desc: '5 días mixto' },
 ]
 const PLACE_OPTS = [
   { id: 'gym',  label: 'Gimnasio',  icon: '🏟️', desc: 'Tengo acceso a maquinaria, pesos libres y más' },
@@ -114,15 +114,17 @@ const ACTIVITY_LABELS: Record<string, string> = {
 }
 
 // ─── Estado ───────────────────────────────────────────────────────────────────
-const TOTAL_STEPS = 12
+const TOTAL_STEPS = 13
 const step = ref(0)
 const noInjuries = ref(false)
 
 const form = useForm({
   name:                     (user.value?.name ?? '') as string,
   age:                      null as number | null,
+  sex:                      '' as string,
   weight_kg:                null as number | null,
   height_cm:                null as number | null,
+  mobility:                 '' as string,
   activity_level:           '' as string,
   level:                    '' as string,
   goal:                     '' as string,
@@ -144,14 +146,15 @@ const canContinue = computed(() => {
     case 1: return true
     case 2: return !!form.activity_level
     case 3: return form.has_trained_before !== null
-    case 4: return !!form.goal
-    case 5: return !!form.place
-    case 6: return form.equipment.length > 0
-    case 7: return true
+    case 4: return !!form.level
+    case 5: return !!form.goal
+    case 6: return !!form.place
+    case 7: return form.equipment.length > 0
     case 8: return true
     case 9: return !!form.days_per_week && !!form.session_duration_minutes
     case 10: return true
     case 11: return true
+    case 12: return true
     default: return false
   }
 })
@@ -193,9 +196,9 @@ onMounted(() => {
     const raw = localStorage.getItem(LS_KEY)
     if (!raw) return
     const draft = JSON.parse(raw) as Record<string, unknown>
-    if (typeof draft.step === 'number') step.value = draft.step
+    if (typeof draft.step === 'number') step.value = Math.min(Math.max(draft.step, 0), TOTAL_STEPS - 1)
     const fields: (keyof typeof form)[] = [
-      'name','age','weight_kg','height_cm','mobility','level','goal','place',
+      'name','age','sex','weight_kg','height_cm','mobility','level','goal','place',
       'equipment','injuries','days_per_week','session_duration_minutes','preferred_muscles',
     ]
     for (const f of fields) {
@@ -207,7 +210,8 @@ onMounted(() => {
 watch(
   () => ({
     step: step.value,
-    name: form.name, age: form.age, weight_kg: form.weight_kg, height_cm: form.height_cm,
+    name: form.name, age: form.age, sex: form.sex, weight_kg: form.weight_kg, height_cm: form.height_cm,
+    mobility: form.mobility,
     activity_level: form.activity_level, level: form.level, goal: form.goal, place: form.place,
     equipment: form.equipment, injuries: form.injuries,
     days_per_week: form.days_per_week, session_duration_minutes: form.session_duration_minutes,
@@ -279,15 +283,12 @@ function toNum(e: Event): number | null {
         <div v-if="form.processing"
           class="fixed inset-0 flex flex-col items-center justify-center z-[9999]"
           style="background:#000;">
-          <div class="relative mb-8" style="width:100px;height:100px;">
-            <div class="absolute inset-0 rounded-full animate-ping" style="background:rgba(29,244,18,0.15);"></div>
-            <div class="absolute inset-0 rounded-full animate-ping" style="background:rgba(29,244,18,0.08);animation-delay:0.4s;"></div>
-            <div class="absolute inset-0 flex items-center justify-center">
-              <div style="width:80px;height:80px;border-radius:50%;border:3px solid rgba(29,244,18,0.15);border-top-color:#1DF412;animation:spin 1s linear infinite;"></div>
-            </div>
-            <div class="absolute inset-0 flex items-center justify-center">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1DF412" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m13 2-2 2.5h3L12 7"/><path d="M10 14v-3"/><path d="M14 14v-3"/><path d="M11 19H6.5a3.5 3.5 0 0 1 0-7h.5a5 5 0 0 1 9.9-.9"/><path d="M16 19h2a2 2 0 0 0 0-4h-.5"/></svg>
-            </div>
+          <div class="relative" style="width:80px;height:80px;margin-bottom:32px;">
+            <img
+              src="/icon-main.svg"
+              alt="Tu Mejor Versión"
+              style="width:80px;height:80px;object-contain;animation:logoZoomOut 1.4s cubic-bezier(0.4,0,0.2,1) forwards;"
+            />
           </div>
           <h2 class="font-display font-black text-center mb-3"
             style="font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;text-transform:uppercase;letter-spacing:-0.01em;color:#fff;">
@@ -296,10 +297,6 @@ function toNum(e: Event): number | null {
           <p style="font-size:14px;color:#6B7280;text-align:center;max-width:220px;line-height:1.6;">
             La IA está diseñando tu plan personalizado de entrenamiento
           </p>
-          <div style="margin-top:32px;display:flex;gap:6px;">
-            <div v-for="i in 3" :key="i" style="width:6px;height:6px;border-radius:50%;background:#1DF412;"
-              :style="`animation:bounce 1.2s ease-in-out ${(i-1)*0.2}s infinite;`"></div>
-          </div>
         </div>
       </Transition>
     </Teleport>
@@ -336,8 +333,8 @@ function toNum(e: Event): number | null {
           </div>
         </div>
 
-        <!-- ── Escritorio: logo + meta + indicadores ── -->
-        <div class="absolute inset-0 hidden md:flex flex-col" style="padding:48px;">
+        <!-- ── Escritorio: logo + meta + indicadores (superpuesto sobre la imagen) ── -->
+        <div class="absolute inset-0 hidden md:flex flex-col" style="padding:48px;pointer-events:none;">
           <!-- Logo -->
           <div>
             <LogoSVG variant="navbar" size="medium" />
@@ -425,7 +422,7 @@ function toNum(e: Event): number | null {
 
                 <!-- Nombre -->
                 <div>
-                  <label style="font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:6px;">Nombre</label>
+                  <label style="font-size:13px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:6px;">Nombre</label>
                   <input v-model="form.name" type="text" placeholder="Tu nombre completo"
                     style="width:100%;background:#161616;border:1.5px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px 16px;font-size:15px;color:#fff;outline:none;caret-color:#1DF412;box-sizing:border-box;"
                     @focus="($event.target as HTMLInputElement).style.borderColor='rgba(29,244,18,0.4)'"
@@ -433,10 +430,32 @@ function toNum(e: Event): number | null {
                   />
                 </div>
 
+                <!-- Sexo biológico -->
+                <div>
+                  <label style="font-size:13px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:8px;">Sexo biológico</label>
+                  <div class="grid grid-cols-3 gap-2">
+                    <button v-for="opt in [
+                      { id:'male',   label:'Hombre', icon:'♂️' },
+                      { id:'female', label:'Mujer',  icon:'♀️' },
+                      { id:'other',  label:'Otro',   icon:'⚧️' },
+                    ]" :key="opt.id"
+                      @click="form.sex = opt.id"
+                      type="button"
+                      style="border-radius:12px;padding:14px 8px;cursor:pointer;border:1.5px solid;transition:all 0.15s;text-align:center;"
+                      :style="form.sex === opt.id
+                        ? 'background:rgba(29,244,18,0.08);border-color:#1DF412;'
+                        : 'background:#161616;border-color:rgba(255,255,255,0.08);'">
+                      <div style="font-size:20px;margin-bottom:4px;">{{ opt.icon }}</div>
+                      <div style="font-size:13px;font-weight:600;" :style="form.sex === opt.id ? 'color:#1DF412;' : 'color:#9CA3AF;'">{{ opt.label }}</div>
+                    </button>
+                  </div>
+                  <p style="font-size:11px;color:#4B5563;margin-top:5px;">Usado para calcular tu metabolismo basal con precisión</p>
+                </div>
+
                 <!-- Edad / Peso / Altura -->
                 <div class="grid grid-cols-3 gap-2">
                   <div>
-                    <label style="font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:6px;">Edad</label>
+                    <label style="font-size:13px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:6px;">Edad</label>
                     <input type="number" min="10" max="100" placeholder="—"
                       :value="form.age ?? ''"
                       @change="form.age = toNum($event)"
@@ -444,10 +463,10 @@ function toNum(e: Event): number | null {
                       @focus="($event.target as HTMLInputElement).style.borderColor='rgba(29,244,18,0.4)'"
                       @blur="($event.target as HTMLInputElement).style.borderColor='rgba(255,255,255,0.08)'"
                     />
-                    <div style="font-size:10px;color:#4B5563;text-align:center;margin-top:3px;">años</div>
+                    <div style="font-size:12px;color:#4B5563;text-align:center;margin-top:3px;">años</div>
                   </div>
                   <div>
-                    <label style="font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:6px;">Peso</label>
+                    <label style="font-size:13px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:6px;">Peso</label>
                     <input type="number" min="20" max="300" step="0.5" placeholder="—"
                       :value="form.weight_kg ?? ''"
                       @change="form.weight_kg = toNum($event)"
@@ -455,10 +474,10 @@ function toNum(e: Event): number | null {
                       @focus="($event.target as HTMLInputElement).style.borderColor='rgba(29,244,18,0.4)'"
                       @blur="($event.target as HTMLInputElement).style.borderColor='rgba(255,255,255,0.08)'"
                     />
-                    <div style="font-size:10px;color:#4B5563;text-align:center;margin-top:3px;">kg</div>
+                    <div style="font-size:12px;color:#4B5563;text-align:center;margin-top:3px;">kg</div>
                   </div>
                   <div>
-                    <label style="font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:6px;">Altura</label>
+                    <label style="font-size:13px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:6px;">Altura</label>
                     <input type="number" min="100" max="250" placeholder="—"
                       :value="form.height_cm ?? ''"
                       @change="form.height_cm = toNum($event)"
@@ -466,13 +485,13 @@ function toNum(e: Event): number | null {
                       @focus="($event.target as HTMLInputElement).style.borderColor='rgba(29,244,18,0.4)'"
                       @blur="($event.target as HTMLInputElement).style.borderColor='rgba(255,255,255,0.08)'"
                     />
-                    <div style="font-size:10px;color:#4B5563;text-align:center;margin-top:3px;">cm</div>
+                    <div style="font-size:12px;color:#4B5563;text-align:center;margin-top:3px;">cm</div>
                   </div>
                 </div>
 
                 <!-- Movilidad -->
                 <div>
-                  <label style="font-size:11px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:8px;">Movilidad articular general</label>
+                  <label style="font-size:13px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:8px;">Movilidad articular general</label>
                   <div class="grid grid-cols-3 gap-2">
                     <button v-for="opt in [{id:'good',label:'Buena',icon:'✅'},{id:'average',label:'Regular',icon:'⚠️'},{id:'limited',label:'Limitada',icon:'🔴'}]"
                       :key="opt.id" @click="form.mobility = opt.id"
@@ -571,6 +590,32 @@ function toNum(e: Event): number | null {
                 </div>
               </div>
             </template>
+
+            <!-- ═══ PASO 4: Nivel de entrenamiento ═══ -->
+            <template v-if="step === 4">
+              <div class="flex flex-col gap-3">
+                <button v-for="opt in LEVEL_OPTS" :key="opt.id"
+                  @click="form.level = opt.id"
+                  class="w-full text-left flex items-center gap-4"
+                  style="border-radius:14px;padding:18px 20px;cursor:pointer;transition:all 0.15s;border:1.5px solid;"
+                  :style="form.level === opt.id ? 'background:rgba(29,244,18,0.08);border-color:#1DF412;' : 'background:#161616;border-color:rgba(255,255,255,0.06);'">
+                  <div class="flex-shrink-0 flex items-center justify-center" style="width:44px;height:44px;border-radius:12px;transition:all 0.15s;"
+                    :style="form.level === opt.id ? 'background:#1DF412;' : 'background:#242424;'">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" :stroke="form.level === opt.id ? '#000' : '#9CA3AF'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M6 15l6-6 6 6"/>
+                    </svg>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="font-bold" style="font-size:16px;letter-spacing:-0.01em;color:#fff;margin-bottom:2px;">{{ opt.label }}</div>
+                    <div style="font-size:12px;color:#9CA3AF;line-height:1.4;">{{ opt.desc }}</div>
+                  </div>
+                  <div v-if="form.level === opt.id" class="flex-shrink-0 flex items-center justify-center" style="width:24px;height:24px;border-radius:50%;background:#1DF412;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                </button>
+              </div>
+            </template>
+
             <!-- ═══ PASO 5: Objetivo ═══ -->
             <template v-if="step === 5">
               <div class="flex flex-col gap-2">
@@ -677,10 +722,46 @@ function toNum(e: Event): number | null {
               </div>
             </template>
 
-            <!-- ═══ PASO 9: Tipo de split ═══ -->
+            <!-- ═══ PASO 9: Disponibilidad ═══ -->
             <template v-if="step === 9">
-              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px;">
-                <button v-for="opt in SPLIT_OPTS.filter(o => ['auto','full_body','upper_lower','ppl','weider'].includes(o.id))" :key="opt.id"
+              <!-- Días por semana -->
+              <div style="margin-bottom:24px;">
+                <div style="font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Días disponibles por semana</div>
+                <div class="flex gap-2 flex-wrap">
+                  <button v-for="d in [1,2,3,4,5,6,7]" :key="d"
+                    @click="form.days_per_week = d"
+                    style="width:48px;height:48px;border-radius:12px;cursor:pointer;font-size:16px;font-weight:700;transition:all 0.15s;border:1.5px solid;display:flex;align-items:center;justify-content:center;"
+                    :style="form.days_per_week === d
+                      ? 'background:#1DF412;color:#000;border-color:#1DF412;'
+                      : 'background:#161616;color:#9CA3AF;border-color:rgba(255,255,255,0.06);'">
+                    {{ d }}
+                  </button>
+                </div>
+                <p v-if="form.days_per_week" style="font-size:12px;color:#6B7280;margin-top:8px;">
+                  {{ form.days_per_week === 1 ? '1 día a la semana' : `${form.days_per_week} días a la semana` }}
+                </p>
+              </div>
+
+              <!-- Duración por sesión -->
+              <div>
+                <div style="font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Duración por sesión</div>
+                <div class="flex flex-wrap gap-2">
+                  <button v-for="opt in DURATION_OPTS" :key="opt.value"
+                    @click="form.session_duration_minutes = opt.value"
+                    style="border-radius:12px;padding:12px 18px;cursor:pointer;font-size:14px;font-weight:600;transition:all 0.15s;border:1.5px solid;"
+                    :style="form.session_duration_minutes === opt.value
+                      ? 'background:#1DF412;color:#000;border-color:#1DF412;'
+                      : 'background:#161616;color:#9CA3AF;border-color:rgba(255,255,255,0.06);'">
+                    {{ opt.label }}
+                  </button>
+                </div>
+              </div>
+            </template>
+
+            <!-- ═══ PASO 10: Tipo de split ═══ -->
+            <template v-if="step === 10">
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+                <button v-for="opt in SPLIT_OPTS" :key="opt.id"
                   @click="form.split_type = opt.id"
                   style="border-radius:14px;padding:16px 14px;cursor:pointer;transition:all 0.15s;border:1.5px solid;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;"
                   :style="form.split_type === opt.id ? 'background:rgba(29,244,18,0.08);border-color:#1DF412;' : 'background:#161616;border-color:rgba(255,255,255,0.06);'">
@@ -694,25 +775,10 @@ function toNum(e: Event): number | null {
                   </div>
                 </button>
               </div>
-              <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
-                <button v-for="opt in SPLIT_OPTS.filter(o => ['upper_lower_emphasis','ppl_hybrid'].includes(o.id))" :key="opt.id"
-                  @click="form.split_type = opt.id"
-                  style="border-radius:12px;padding:14px;cursor:pointer;transition:all 0.15s;border:1.5px solid;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;"
-                  :style="form.split_type === opt.id ? 'background:rgba(29,244,18,0.08);border-color:#1DF412;' : 'background:#161616;border-color:rgba(255,255,255,0.06);'">
-                  <span style="font-size:22px;">{{ opt.icon }}</span>
-                  <div>
-                    <div class="font-bold" style="font-size:12px;letter-spacing:-0.01em;color:#fff;margin-bottom:1px;">{{ opt.label }}</div>
-                    <div style="font-size:9px;color:#9CA3AF;line-height:1.3;">{{ opt.desc }}</div>
-                  </div>
-                  <div v-if="form.split_type === opt.id" class="flex items-center justify-center" style="width:18px;height:18px;border-radius:50%;background:#1DF412;">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  </div>
-                </button>
-              </div>
             </template>
 
-            <!-- ═══ PASO 10: Preferencias musculares ═══ -->
-            <template v-if="step === 10">
+            <!-- ═══ PASO 11: Preferencias musculares ═══ -->
+            <template v-if="step === 11">
               <div class="flex flex-wrap gap-2">
                 <button v-for="opt in MUSCLE_OPTS" :key="opt.id"
                   @click="toggleMuscle(opt.id)"
@@ -726,12 +792,13 @@ function toNum(e: Event): number | null {
               <p style="font-size:12px;color:#4B5563;margin-top:16px;">Selecciona los grupos que quieras priorizar (opcional)</p>
             </template>
 
-            <!-- ═══ PASO 11: Resumen ═══ -->
-            <template v-if="step === 11">
+            <!-- ═══ PASO 12: Resumen ═══ -->
+            <template v-if="step === 12">
               <div class="flex flex-col gap-3">
 
                 <template v-for="row in [
                   { label: 'Nombre',          value: form.name || '—' },
+                  { label: 'Sexo',            value: form.sex === 'male' ? 'Hombre' : form.sex === 'female' ? 'Mujer' : form.sex === 'other' ? 'Otro' : '—' },
                   { label: 'Nivel',            value: LEVEL_LABELS[form.level] || '—' },
                   { label: 'Objetivo',         value: GOAL_LABELS[form.goal] || '—' },
                   { label: 'Actividad',        value: ACTIVITY_LABELS[form.activity_level] || '—' },
@@ -813,6 +880,12 @@ function toNum(e: Event): number | null {
 @keyframes bounce {
   0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
   40% { transform: scale(1); opacity: 1; }
+}
+@keyframes logoZoomOut {
+  0%   { transform: scale(0.4); opacity: 0; }
+  40%  { transform: scale(1.1); opacity: 1; }
+  70%  { transform: scale(1.0); opacity: 1; }
+  100% { transform: scale(1.15); opacity: 0.4; }
 }
 
 .fade-overlay-enter-active { transition: opacity 0.3s ease; }

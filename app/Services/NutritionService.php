@@ -69,7 +69,7 @@ class NutritionService
         $weight = $user->weight_kg ?? 70;
         $height = $user->height_cm ?? 170;
         $age = $user->age ?? 30;
-        $sex = 'male';
+        $sex = $user->sex ?? 'male';
         $activity = $user->activity_level ?? 'lightly_active';
         $goal = $user->goal ?? 'muscle_gain';
 
@@ -99,9 +99,11 @@ class NutritionService
             ['name' => 'Cena',         'time' => '20:00', 'pct' => 0.20],
         ];
 
-        foreach ($meals as &$meal) {
+        foreach ($meals as $index => &$meal) {
+            $meal['meal_number'] = $index + 1;
             $meal['target_kcal'] = round($targetKcal * $meal['pct']);
         }
+        unset($meal);
 
         return $meals;
     }

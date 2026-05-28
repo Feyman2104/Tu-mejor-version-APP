@@ -60,9 +60,16 @@ class NutritionController extends Controller
 
     private function createDietPlan($user, array $planData): DietPlan
     {
+        $dietGoal = match ($user->goal) {
+            'fat_loss'           => 'fat_loss',
+            'muscle_gain'        => 'muscle_gain',
+            'body_recomposition' => 'body_recomposition',
+            default              => 'maintenance',
+        };
+
         $plan = $user->dietPlans()->create([
             'name'             => 'Plan nutricional personalizado',
-            'goal'             => $user->goal ?? 'maintenance',
+            'goal'             => $dietGoal,
             'daily_kcal_target' => $planData['target_kcal'],
             'protein_g_target'  => $planData['macros']['protein_g'],
             'fat_g_target'      => $planData['macros']['fat_g'],
