@@ -91,23 +91,70 @@ class NutritionService
         ];
     }
 
-    private function getMealDistribution(float $targetKcal, array $macros): array
+    /**
+     * Genera 7 variantes de comidas (una por día de la semana, 1=Lunes…7=Domingo).
+     * Retorna ['macros' => [...], 'days' => [1 => [...meals...], 2 => [...], ...]]
+     *
+     * @return array<string, mixed>
+     */
+    public function generateMultiDayDietPlan(?User $user = null): array
     {
-        $meals = [
-            ['name' => 'Desayuno',     'time' => '07:00', 'pct' => 0.25],
-            ['name' => 'Merienda AM',  'time' => '10:00', 'pct' => 0.10],
-            ['name' => 'Almuerzo',    'time' => '13:00', 'pct' => 0.35],
-            ['name' => 'Merienda PM',  'time' => '17:00', 'pct' => 0.10],
-            ['name' => 'Cena',         'time' => '20:00', 'pct' => 0.20],
-        ];
+        $user = $user ?? $this->user;
+        if (!$user) {
+            return [];
+        }
 
+        $weight   = $user->weight_kg ?? 70;
+        $height   = $user->height_cm ?? 170;
+        $age      = $user->age ?? 30;
+        $sex      = $user->sex ?? 'male';
+        $activity = $user->activity_level ?? 'lightly_active';
+        $goal     = $user->goal ?? 'muscle_gain';
+
+        $bmr          = $this->calculateBMR($weight, $height, $age, $sex);
+        $tdee         = $this->calculateTDEE($bmr, $activity);
+        $adjustedTdee = $this->adjustForGoal($tdee, $goal);
+        $macros       = $this->calculateMacros($adjustedTdee, $weight, $goal);
+
+        // Cargar catálogo de alimentos una sola vez
         $foodsByCategory = Food::all()->groupBy('category');
 
+        $days = [];
+        for ($day = 1; $day <= 7; $day++) {
+            $days[$day] = $this->getMealDistribution($adjustedTdee, $macros, $day, $foodsByCategory);
+        }
+
+        return [
+            'bmr'         => round($bmr),
+            'tdee'        => round($tdee),
+            'target_kcal' => $macros['kcal'],
+            'macros'      => $macros,
+            'days'        => $days,
+        ];
+    }
+
+    private function getMealDistribution(
+        float $targetKcal,
+        array $macros,
+        int $dayOfWeek = 0,
+        ?Collection $foodsByCategory = null,
+    ): array {
+        $meals = [
+            ['name' => 'Desayuno',    'time' => '07:00', 'pct' => 0.25],
+            ['name' => 'Merienda AM', 'time' => '10:00', 'pct' => 0.10],
+            ['name' => 'Almuerzo',    'time' => '13:00', 'pct' => 0.35],
+            ['name' => 'Merienda PM', 'time' => '17:00', 'pct' => 0.10],
+            ['name' => 'Cena',        'time' => '20:00', 'pct' => 0.20],
+        ];
+
+        $foodsByCategory ??= Food::all()->groupBy('category');
+
         foreach ($meals as $index => &$meal) {
-            $meal['meal_number'] = $index + 1;
-            $meal['target_kcal'] = round($targetKcal * $meal['pct']);
+            $meal['meal_number']    = $index + 1;
+            $meal['day_of_week']    = $dayOfWeek ?: null;
+            $meal['target_kcal']    = round($targetKcal * $meal['pct']);
             $meal['target_protein_g'] = round($macros['protein_g'] * $meal['pct']);
-            $meal['items'] = $this->selectFoodsForMeal($meal, $foodsByCategory);
+            $meal['items'] = $this->selectFoodsForMeal($meal, $foodsByCategory, $dayOfWeek);
         }
         unset($meal);
 
@@ -116,15 +163,18 @@ class NutritionService
 
     /**
      * Selecciona alimentos del catálogo para una comida según una plantilla de
-     * categorías y reparte las kcal objetivo entre ellos. Determinista.
+     * categorías y reparte las kcal objetivo entre ellos. El offset varía con
+     * el día de la semana para producir variedad entre días.
      *
      * @return array<int, array<string, mixed>>
      */
-    private function selectFoodsForMeal(array $meal, Collection $foodsByCategory): array
+    private function selectFoodsForMeal(array $meal, Collection $foodsByCategory, int $dayOfWeek = 0): array
     {
         $items = [];
         foreach ($this->mealTemplate($meal['meal_number']) as $position => [$categories, $share]) {
-            $food = $this->pickFood($categories, $foodsByCategory, $meal['meal_number'] + $position);
+            // Offset: combina número de comida, posición en plantilla y día para variar
+            $offset = $meal['meal_number'] + $position + ($dayOfWeek * 3);
+            $food = $this->pickFood($categories, $foodsByCategory, $offset);
             if (!$food) {
                 continue;
             }

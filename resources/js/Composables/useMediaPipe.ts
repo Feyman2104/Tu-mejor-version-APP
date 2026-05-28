@@ -135,6 +135,107 @@ export function useMediaPipe() {
     }
   }
 
+  /**
+   * Procesa un archivo de video local 100% en el navegador (sin subir al servidor).
+   * Carga el objectURL en videoEl, reproduce y bombea cada frame a MediaPipe.
+   * Resuelve cuando el video termina o se llama stop().
+   */
+  async function startVideoFile(
+    videoEl: HTMLVideoElement,
+    canvasEl: HTMLCanvasElement,
+    onResults: (results: PoseResults) => void,
+    fileUrl: string,
+  ): Promise<void> {
+    errorMessage.value = null
+    onResultsCallback = onResults
+
+    const loaded = await waitForLibraries()
+    if (!loaded) {
+      errorMessage.value = 'No se pudieron cargar las librerías de detección. Recarga la página.'
+      return
+    }
+
+    try {
+      pose.value = new window.Pose({
+        locateFile: (file: string) =>
+          `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`,
+      })
+
+      pose.value.setOptions({
+        modelComplexity: 1,
+        smoothLandmarks: true,
+        enableSegmentation: false,
+        minDetectionConfidence: 0.4,
+        minTrackingConfidence: 0.4,
+      })
+
+      const ctx = canvasEl.getContext('2d')!
+
+      pose.value.onResults((results: PoseResults) => {
+        canvasEl.width  = videoEl.videoWidth  || 640
+        canvasEl.height = videoEl.videoHeight || 480
+
+        ctx.save()
+        ctx.clearRect(0, 0, canvasEl.width, canvasEl.height)
+        ctx.drawImage(results.image, 0, 0, canvasEl.width, canvasEl.height)
+
+        if (results.poseLandmarks) {
+          window.drawConnectors(ctx, results.poseLandmarks, window.POSE_CONNECTIONS, {
+            color: 'rgba(29, 244, 18, 0.8)',
+            lineWidth: 3,
+          })
+          window.drawLandmarks(ctx, results.poseLandmarks, {
+            color: '#FFFFFF',
+            fillColor: '#1DF412',
+            lineWidth: 1,
+            radius: 4,
+          })
+        }
+        ctx.restore()
+
+        onResultsCallback?.(results)
+      })
+
+      isReady.value = true
+      isRunning.value = true
+
+      // Cargar y reproducir el video
+      videoEl.src = fileUrl
+      await new Promise<void>((resolve, reject) => {
+        videoEl.onloadeddata = () => resolve()
+        videoEl.onerror = () => reject(new Error('No se pudo cargar el video.'))
+      })
+
+      videoEl.play()
+
+      // Bombear frames mientras el video esté corriendo
+      await new Promise<void>((resolve) => {
+        let stopped = false
+
+        const sendFrame = async () => {
+          if (stopped || videoEl.ended || videoEl.paused) {
+            resolve()
+            return
+          }
+          try {
+            await pose.value.send({ image: videoEl })
+          } catch { /* ignorar errores de frame */ }
+          requestAnimationFrame(sendFrame)
+        }
+
+        videoEl.onended = () => { stopped = true; resolve() }
+        requestAnimationFrame(sendFrame)
+      })
+    } catch (err: unknown) {
+      const e = err as { message?: string }
+      errorMessage.value = 'Error al procesar el video: ' + (e?.message ?? 'desconocido')
+    } finally {
+      // Limpiar URL del objeto pero NO el nodo <video> (lo reutiliza PosturePanel)
+      URL.revokeObjectURL(fileUrl)
+      isRunning.value = false
+    }
+  }
+
   async function stop(): Promise<void> {
     try {
       if (camera.value) {
@@ -157,6 +258,7 @@ export function useMediaPipe() {
     errorMessage,
     librariesLoaded,
     start,
+    startVideoFile,
     stop,
   }
 }

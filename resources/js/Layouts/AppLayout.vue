@@ -1,12 +1,30 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, provide } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
 import type { User } from '@/types'
 import CoachModal from '@/Components/Coach/CoachModal.vue'
+import ToastHost from '@/Components/UI/ToastHost.vue'
 import LogoSVG from '@/Components/LogoSVG.vue'
+
+export type CoachOpenParams = {
+  tab?: 'chat' | 'posture'
+  exercise?: string
+  mode?: 'live' | 'upload'
+}
 
 const page = usePage()
 const user = computed(() => page.props.auth.user as User | null)
+
+// Limpia la conversación del Coach guardada por sesión al cerrar sesión, para
+// que no se filtre a otro usuario en el mismo navegador.
+function clearCoachChat() {
+  try {
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const key = sessionStorage.key(i)
+      if (key?.startsWith('coach-chat:')) sessionStorage.removeItem(key)
+    }
+  } catch {}
+}
 
 // Ítems de navegación principal con la ruta del segmento URL para detección activa
 const navItems = [
@@ -50,6 +68,18 @@ const roleLabel = computed(() => {
 
 // FAB — Coach modal
 const coachOpen = ref(false)
+const coachInitialTab = ref<'chat' | 'posture'>('chat')
+const coachInitialExercise = ref<string | undefined>(undefined)
+const coachInitialMode = ref<'live' | 'upload'>('live')
+
+function openCoach(params?: CoachOpenParams) {
+  coachInitialTab.value = params?.tab ?? 'chat'
+  coachInitialExercise.value = params?.exercise
+  coachInitialMode.value = params?.mode ?? 'live'
+  coachOpen.value = true
+}
+
+provide('openCoach', openCoach)
 
 // Ocultar FAB solo en /chat y /posture (páginas completas que ya incluyen esa funcionalidad)
 const hideFab = computed(() => {
@@ -103,7 +133,7 @@ const hideFab = computed(() => {
             <div class="text-sm font-semibold text-white truncate">{{ user.name }}</div>
             <div class="text-xs" style="color:#9CA3AF">{{ roleLabel }}</div>
           </div>
-          <Link :href="route('logout')" method="post" as="button"
+          <Link :href="route('logout')" method="post" as="button" @click="clearCoachChat"
                 class="text-xs px-3 py-1.5 rounded-lg transition-colors flex-shrink-0 text-[#9CA3AF] border border-white/[0.06] hover:text-white hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DF412]">
             Salir
           </Link>
@@ -167,7 +197,16 @@ const hideFab = computed(() => {
     </Transition>
 
     <!-- ── Coach Modal ── -->
-    <CoachModal :open="coachOpen" @close="coachOpen = false" />
+    <CoachModal
+      :open="coachOpen"
+      :initial-tab="coachInitialTab"
+      :initial-exercise="coachInitialExercise"
+      :initial-mode="coachInitialMode"
+      @close="coachOpen = false"
+    />
+
+    <!-- ── Toast notifications ── -->
+    <ToastHost />
 
   </div>
 </template>

@@ -1,14 +1,20 @@
 <script setup lang="ts">
-import { ref, computed, reactive, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, reactive, watch, onMounted, onUnmounted, nextTick, inject } from 'vue'
 import { Link, router, usePage } from '@inertiajs/vue3'
 import Sortable from 'sortablejs'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import ExerciseModal from '@/Components/Workout/ExerciseModal.vue'
 import ExerciseSearchModal from '@/Components/Workout/ExerciseSearchModal.vue'
 import { useWorkoutSession } from '@/Composables/useWorkoutSession'
+import { useToasts } from '@/Composables/useToasts'
+import { resolvePostureExercise } from '@/data/postureMap'
 import type { Routine, RoutineDay, RoutineExercise, WorkoutLog, Exercise } from '@/types'
+import type { CoachOpenParams } from '@/Layouts/AppLayout.vue'
 
 defineOptions({ layout: AppLayout })
+
+const openCoach = inject<(params?: CoachOpenParams) => void>('openCoach')
+const toast = useToasts()
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 const props = defineProps<{
@@ -538,6 +544,7 @@ function startRestTimer(seconds: number) {
   restInterval = setInterval(() => {
     if (restSeconds.value <= 0) {
       stopRestTimer()
+      toast.info('¡Tiempo de descanso terminado! Empieza la siguiente serie.', { duration: 5000 })
       return
     }
     restSeconds.value--
@@ -712,6 +719,15 @@ async function toggleSet(re: RoutineExercise, idx: number) {
   set.completed = true
   activeReId.value = re.id
 
+  // Toast de progresión: solo en la 1ª serie del ejercicio y si hay sugerencia diferente al actual
+  if (idx === 0) {
+    const suggested = props.suggestedWeights?.[re.exercise?.id ?? 0]
+    const current   = parseFloat(set.weightKg)
+    if (suggested && suggested > current) {
+      toast.info(`Sugerencia: podrías subir a ${suggested} kg en este ejercicio.`, { duration: 6000 })
+    }
+  }
+
   // Iniciar timer de descanso (con lógica de superserie)
   const ssGroup = findSupersetGroup(re.id)
   if (ssGroup) {
@@ -794,6 +810,15 @@ async function completeWorkout() {
     { duration_minutes: durationMinutes },
     { onFinish: () => { completing.value = false } }
   )
+}
+
+// ─── Analiza mi técnica ───────────────────────────────────────────────────────
+function openTechniqueCoach(re: RoutineExercise) {
+  const name = re.exercise?.name ?? ''
+  const postureId = resolvePostureExercise(name)
+  if (openCoach) {
+    openCoach({ tab: 'posture', exercise: postureId, mode: 'live' })
+  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1115,6 +1140,15 @@ function injuryWarning(re: RoutineExercise): string | null {
                 <div style="font-size:11px;color:#6B7280;margin-bottom:4px;">
                   {{ re.sets }} series · {{ re.reps }} reps
                 </div>
+                <!-- Botón analiza técnica -->
+                <button v-if="activeLog && !activeLog.completed"
+                  @click.stop="openTechniqueCoach(re)"
+                  style="display:inline-flex;align-items:center;gap:5px;background:rgba(29,244,18,0.06);border:1px solid rgba(29,244,18,0.2);border-radius:999px;padding:3px 10px;cursor:pointer;margin-bottom:3px;transition:all 0.15s;"
+                  onmouseover="this.style.background='rgba(29,244,18,0.12)'"
+                  onmouseout="this.style.background='rgba(29,244,18,0.06)'">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#1DF412" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7 16 12 23 17z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                  <span style="font-size:10px;color:#1DF412;font-weight:700;letter-spacing:0.04em;">Analiza mi técnica</span>
+                </button>
                 <!-- Fila de descanso prominente -->
                 <button class="rest-trigger" @click.stop="openRestPicker(re)"
                   style="display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;padding:0;margin-bottom:3px;">
@@ -1321,7 +1355,7 @@ function injuryWarning(re: RoutineExercise): string | null {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             {{ completing ? 'Guardando...' : allDone ? '¡Finalizar entrenamiento! 🔥' : 'Finalizar entrenamiento' }}
           </button>
-          <button v-if="completedCount === 0" @click="discardWorkout"
+          <button @click="discardWorkout"
             class="w-full flex items-center justify-center gap-2 font-bold"
             style="border-radius:14px;padding:12px 24px;font-size:14px;cursor:pointer;border:none;transition:all 0.2s;background:transparent;color:#9CA3AF;border:1px solid rgba(255,255,255,0.06);">
             Descartar sesión

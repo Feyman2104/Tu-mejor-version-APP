@@ -6,6 +6,14 @@ import { usePostureFeedback, type SessionSummary } from '@/Composables/usePostur
 import { useVoiceCoach } from '@/Composables/useVoiceCoach'
 import { EXERCISE_KNOWLEDGE } from '@/data/exerciseKnowledge'
 
+const props = withDefaults(defineProps<{
+  initialExercise?: string
+  initialMode?: 'live' | 'upload'
+}>(), {
+  initialExercise: undefined,
+  initialMode: 'live',
+})
+
 const EXERCISES = [
   { id: 'squat',           label: 'Sentadilla' },
   { id: 'pushup',          label: 'Flexión' },
@@ -17,12 +25,70 @@ const EXERCISES = [
 
 const FACING_KEY = 'posture_facing_mode'
 
-const selectedExercise = ref('squat')
+const VALID_EXERCISE_IDS = EXERCISES.map(e => e.id)
+
+const selectedExercise = ref(
+  props.initialExercise && VALID_EXERCISE_IDS.includes(props.initialExercise)
+    ? props.initialExercise
+    : 'squat'
+)
+
+type AnalysisMode = 'live' | 'upload'
+const analysisMode = ref<AnalysisMode>(props.initialMode ?? 'live')
+
 const started      = ref(false)
 const briefing     = ref(false)
 const initializing = ref(false)
 const summary      = ref<SessionSummary | null>(null)
 const saved        = ref(false)
+
+// Video upload state
+const uploadProgress   = ref(0)   // 0-100 basado en currentTime/duration
+const uploadProcessing = ref(false)
+const uploadFileName   = ref<string | null>(null)
+const uploadVideoRef   = ref<HTMLVideoElement | null>(null)
+
+function onVideoFileChange(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  uploadFileName.value = file.name
+  const url = URL.createObjectURL(file)
+  analyzeVideoFile(url)
+}
+
+async function analyzeVideoFile(fileUrl: string) {
+  if (!videoRef.value || !canvasRef.value) return
+  uploadProcessing.value = true
+  uploadProgress.value = 0
+  initializing.value = true
+  errorMessage.value = null
+  summary.value = null
+  saved.value = false
+  reset()
+
+  // Progreso basado en eventos timeupdate del <video> oculto
+  const vidEl = videoRef.value
+  const onTimeUpdate = () => {
+    if (vidEl.duration) {
+      uploadProgress.value = Math.round((vidEl.currentTime / vidEl.duration) * 100)
+    }
+  }
+  vidEl.addEventListener('timeupdate', onTimeUpdate)
+
+  await startVideoFile(videoRef.value, canvasRef.value, onResults, fileUrl)
+
+  vidEl.removeEventListener('timeupdate', onTimeUpdate)
+  initializing.value = false
+  uploadProcessing.value = false
+  uploadProgress.value = 100
+
+  // Mostrar resumen si hubo actividad
+  const snap = getSummary()
+  if (snap.totalFrames > 0) {
+    summary.value = snap
+    speakFinal(snap.finalScore)
+  }
+}
 
 // Orientación de pantalla — adapta el aspect-ratio de la cámara a portrait/landscape
 const isLandscape = ref(
@@ -90,7 +156,7 @@ const facingMode = ref<'user' | 'environment'>(storedFacing === 'environment' ? 
 const videoRef  = ref<HTMLVideoElement | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 
-const { isRunning, errorMessage, start, stop, librariesLoaded } = useMediaPipe()
+const { isRunning, errorMessage, start, startVideoFile, stop, librariesLoaded } = useMediaPipe()
 const { currentFeedback, score, repCount, totalFrames, isPersonDetected, processFrame, reset, getSummary } = usePostureFeedback()
 const voice = useVoiceCoach()
 
@@ -507,30 +573,83 @@ function scoreColor(val?: number): string {
           </button>
         </div>
 
-        <!-- Selector de cámara -->
-        <div style="font-size:10px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin:16px 0 10px;">Cámara</div>
-        <div style="display:flex;gap:6px;">
-          <button @click="facingMode !== 'user' && switchCamera()"
+        <!-- Selector de modo: Cámara en vivo / Subir video -->
+        <div style="font-size:10px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin:16px 0 10px;">Modo de análisis</div>
+        <div style="display:flex;gap:6px;margin-bottom:12px;">
+          <button @click="analysisMode = 'live'"
             style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;border:1.5px solid;"
-            :style="facingMode === 'user'
+            :style="analysisMode === 'live'
               ? 'background:#1DF412;color:#000;border-color:#1DF412;'
               : 'background:#1A1A1A;color:#9CA3AF;border-color:rgba(255,255,255,0.08);'">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M7 20.66a8 8 0 0 1 10 0"/></svg>
-            Frontal
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7 16 12 23 17z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+            Cámara en vivo
           </button>
-          <button @click="facingMode !== 'environment' && switchCamera()"
+          <button @click="analysisMode = 'upload'"
             style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;border:1.5px solid;"
-            :style="facingMode === 'environment'
+            :style="analysisMode === 'upload'
               ? 'background:#1DF412;color:#000;border-color:#1DF412;'
               : 'background:#1A1A1A;color:#9CA3AF;border-color:rgba(255,255,255,0.08);'">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            Trasera
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Subir video
           </button>
         </div>
-        <p style="font-size:11px;color:#6B7280;line-height:1.4;margin-top:8px;">
-          Usa la <strong style="color:#9CA3AF;">frontal</strong> si entrenas solo, o la
-          <strong style="color:#9CA3AF;">trasera</strong> si alguien te graba.
-        </p>
+
+        <!-- Uploader — solo visible en modo upload -->
+        <div v-if="analysisMode === 'upload'" style="margin-bottom:12px;">
+          <label
+            style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:#0D0D0D;border:1.5px dashed rgba(255,255,255,0.12);border-radius:14px;padding:24px 16px;cursor:pointer;transition:border-color 0.15s;text-align:center;"
+            :style="uploadProcessing ? 'pointer-events:none;opacity:0.7;' : 'hover:border-[#1DF412];'"
+          >
+            <div style="width:40px;height:40px;border-radius:10px;background:rgba(29,244,18,0.08);display:flex;align-items:center;justify-content:center;color:#1DF412;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div>
+              <div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:3px;">
+                {{ uploadFileName ?? 'Selecciona un video' }}
+              </div>
+              <div style="font-size:11px;color:#6B7280;">MP4, MOV, WebM · El video no se sube al servidor</div>
+            </div>
+            <input type="file" accept="video/*" style="display:none;" @change="onVideoFileChange" :disabled="uploadProcessing" />
+          </label>
+
+          <!-- Barra de progreso -->
+          <div v-if="uploadProcessing" style="margin-top:10px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+              <span style="font-size:11px;color:#9CA3AF;font-weight:600;">Analizando video...</span>
+              <span style="font-size:11px;color:#1DF412;font-weight:700;">{{ uploadProgress }}%</span>
+            </div>
+            <div style="height:4px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden;">
+              <div :style="{ width: uploadProgress + '%', background: '#1DF412', height: '100%', borderRadius: '99px', transition: 'width 0.3s ease' }"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Selector de cámara (solo en modo live) -->
+        <template v-if="analysisMode === 'live'">
+          <div style="font-size:10px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin:16px 0 10px;">Cámara</div>
+          <div style="display:flex;gap:6px;">
+            <button @click="facingMode !== 'user' && switchCamera()"
+              style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;border:1.5px solid;"
+              :style="facingMode === 'user'
+                ? 'background:#1DF412;color:#000;border-color:#1DF412;'
+                : 'background:#1A1A1A;color:#9CA3AF;border-color:rgba(255,255,255,0.08);'">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M7 20.66a8 8 0 0 1 10 0"/></svg>
+              Frontal
+            </button>
+            <button @click="facingMode !== 'environment' && switchCamera()"
+              style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;border:1.5px solid;"
+              :style="facingMode === 'environment'
+                ? 'background:#1DF412;color:#000;border-color:#1DF412;'
+                : 'background:#1A1A1A;color:#9CA3AF;border-color:rgba(255,255,255,0.08);'">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              Trasera
+            </button>
+          </div>
+          <p style="font-size:11px;color:#6B7280;line-height:1.4;margin-top:8px;">
+            Usa la <strong style="color:#9CA3AF;">frontal</strong> si entrenas solo, o la
+            <strong style="color:#9CA3AF;">trasera</strong> si alguien te graba.
+          </p>
+        </template>
       </div>
 
       <!-- Camera view — aspect-ratio responsivo según orientación de pantalla -->
@@ -664,7 +783,7 @@ function scoreColor(val?: number): string {
 
       <!-- Controls — compactos cuando el análisis está activo -->
       <div style="display:flex;gap:8px;" :style="started ? 'margin-bottom:8px;' : 'margin-bottom:16px;'">
-        <button v-if="!started && !initializing" @click="openBriefing"
+        <button v-if="!started && !initializing && analysisMode === 'live'" @click="openBriefing"
           style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;background:#1DF412;color:#000;border:none;border-radius:12px;padding:14px;font-size:14px;cursor:pointer;box-shadow:0 4px 20px rgba(29,244,18,0.3);">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
           Iniciar análisis

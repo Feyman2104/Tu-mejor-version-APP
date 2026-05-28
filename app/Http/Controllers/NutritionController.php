@@ -25,16 +25,31 @@ class NutritionController extends Controller
 
         // Regenera si no hay plan o si el plan activo quedó sin alimentos (p.ej. se
         // creó antes de sembrar el catálogo de alimentos).
-        if (!$activePlan || !$activePlan->meals()->has('items')->exists()) {
+        $hasDays = $activePlan
+            ? $activePlan->meals()->whereNotNull('day_of_week')->exists()
+            : false;
+
+        if (!$activePlan || !$activePlan->meals()->has('items')->exists() || !$hasDays) {
             $activePlan = $this->freshPlan($user);
         }
 
-        $meals = $activePlan->meals()->with('items.food')->get();
+        // Día actual ISO (1=Lun…7=Dom); lo usamos como día por defecto en el front
+        $todayDow = (int) now()->isoFormat('E');
+
+        // Agrupar comidas por día y cargar relaciones
+        $mealsByDay = $activePlan->meals()
+            ->with('items.food')
+            ->orderBy('day_of_week')
+            ->orderBy('meal_number')
+            ->get()
+            ->groupBy('day_of_week');
 
         return Inertia::render('Nutrition/Index', [
-            'plan'  => $activePlan,
-            'meals' => $meals,
-            'foods' => Food::orderBy('category')->orderBy('name')->get(['id', 'name', 'category', 'kcal', 'protein_g', 'fat_g', 'carbs_g', 'fiber_g', 'portion_g', 'density', 'grams_per_unit']),
+            'plan'       => $activePlan,
+            'mealsByDay' => $mealsByDay,
+            'todayDow'   => $todayDow,
+            'foods'      => Food::orderBy('category')->orderBy('name')
+                               ->get(['id', 'name', 'category', 'kcal', 'protein_g', 'fat_g', 'carbs_g', 'fiber_g', 'portion_g', 'density', 'grams_per_unit']),
         ]);
     }
 
@@ -100,10 +115,10 @@ class NutritionController extends Controller
     {
         $user->dietPlans()->where('is_active', true)->update(['is_active' => false]);
 
-        return $this->createDietPlan($user, $this->nutritionService->generateDietPlan($user));
+        return $this->createMultiDayPlan($user, $this->nutritionService->generateMultiDayDietPlan($user));
     }
 
-    private function createDietPlan($user, array $planData): DietPlan
+    private function createMultiDayPlan(User $user, array $planData): DietPlan
     {
         $dietGoal = match ($user->goal) {
             'fat_loss'           => 'fat_loss',
@@ -113,26 +128,30 @@ class NutritionController extends Controller
         };
 
         $plan = $user->dietPlans()->create([
-            'name'             => 'Plan nutricional personalizado',
-            'goal'             => $dietGoal,
+            'name'              => 'Plan nutricional personalizado',
+            'goal'              => $dietGoal,
             'daily_kcal_target' => $planData['target_kcal'],
             'protein_g_target'  => $planData['macros']['protein_g'],
             'fat_g_target'      => $planData['macros']['fat_g'],
             'carbs_g_target'    => $planData['macros']['carbs_g'],
-            'is_active'        => true,
+            'is_active'         => true,
         ]);
 
-        foreach ($planData['meals'] as $mealData) {
-            $meal = $plan->meals()->create([
-                'meal_number'      => $mealData['meal_number'] ?? 1,
-                'name'             => $mealData['name'],
-                'time'             => $mealData['time'],
-                'target_kcal'      => $mealData['target_kcal'],
-                'target_protein_g' => $mealData['target_protein_g'] ?? 0,
-            ]);
+        // Persistir comidas por día (1=Lun…7=Dom)
+        foreach ($planData['days'] as $dayOfWeek => $meals) {
+            foreach ($meals as $mealData) {
+                $meal = $plan->meals()->create([
+                    'day_of_week'      => $dayOfWeek,
+                    'meal_number'      => $mealData['meal_number'],
+                    'name'             => $mealData['name'],
+                    'time'             => $mealData['time'],
+                    'target_kcal'      => $mealData['target_kcal'],
+                    'target_protein_g' => $mealData['target_protein_g'] ?? 0,
+                ]);
 
-            foreach ($mealData['items'] ?? [] as $item) {
-                $meal->items()->create($item);
+                foreach ($mealData['items'] ?? [] as $item) {
+                    $meal->items()->create($item);
+                }
             }
         }
 

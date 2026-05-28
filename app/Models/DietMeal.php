@@ -12,15 +12,16 @@ class DietMeal extends Model
     use HasFactory;
 
     protected $fillable = [
-        'diet_plan_id', 'meal_number', 'name', 'time',
+        'diet_plan_id', 'day_of_week', 'meal_number', 'name', 'time',
         'target_kcal', 'target_protein_g',
     ];
 
     protected function casts(): array
     {
         return [
-            'meal_number'    => 'integer',
-            'target_kcal'     => 'float',
+            'day_of_week'      => 'integer',
+            'meal_number'      => 'integer',
+            'target_kcal'      => 'float',
             'target_protein_g' => 'float',
         ];
     }

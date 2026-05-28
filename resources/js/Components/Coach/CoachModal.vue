@@ -3,24 +3,32 @@ import { ref, watch, onMounted, onUnmounted } from 'vue'
 import ChatPanel from './ChatPanel.vue'
 import PosturePanel from './PosturePanel.vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   open: boolean
-}>()
+  initialTab?: 'chat' | 'posture'
+  initialExercise?: string
+  initialMode?: 'live' | 'upload'
+}>(), {
+  initialTab: 'chat',
+  initialExercise: undefined,
+  initialMode: 'live',
+})
 
 const emit = defineEmits<{
   close: []
 }>()
 
 type Tab = 'chat' | 'posture'
-const activeTab = ref<Tab>('chat')
+const activeTab = ref<Tab>(props.initialTab)
 const postureRef = ref<InstanceType<typeof PosturePanel> | null>(null)
 
-// Detener cámara al cerrar modal o al cambiar de pestaña
+// Al abrir, aplicar la pestaña/ejercicio/modo indicados
 watch(() => props.open, async (isOpen) => {
   if (!isOpen) {
     await postureRef.value?.stopAnalysis()
     document.body.style.overflow = ''
   } else {
+    activeTab.value = props.initialTab
     document.body.style.overflow = 'hidden'
   }
 })
@@ -92,7 +100,11 @@ onUnmounted(() => {
               <ChatPanel />
             </div>
             <div v-show="activeTab === 'posture'" style="position:absolute;inset:0;overflow-y:auto;">
-              <PosturePanel ref="postureRef" />
+              <PosturePanel
+                ref="postureRef"
+                :initial-exercise="initialExercise"
+                :initial-mode="initialMode"
+              />
             </div>
           </div>
 

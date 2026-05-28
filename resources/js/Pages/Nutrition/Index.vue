@@ -7,11 +7,31 @@ import type { NutritionFood, DietMeal, DietMealItem, DietPlan } from '@/types'
 defineOptions({ layout: AppLayout })
 
 const page = usePage()
-const plan  = computed(() => page.props.plan  as DietPlan)
-const meals = computed(() => page.props.meals as DietMeal[])
-const foods = computed(() => page.props.foods as NutritionFood[])
+const plan       = computed(() => page.props.plan       as DietPlan)
+const mealsByDay = computed(() => (page.props.mealsByDay ?? {}) as Record<number, DietMeal[]>)
+const todayDow   = computed(() => (page.props.todayDow  as number) ?? 1)
+const foods      = computed(() => page.props.foods      as NutritionFood[])
 
-// ─── Totales ──────────────────────────────────────────────────────────────────
+// Día seleccionado (1=Lun…7=Dom)
+const selectedDay = ref<number>(todayDow.value)
+
+const DAY_LABELS: Record<number, string> = {
+  1: 'Lun', 2: 'Mar', 3: 'Mié', 4: 'Jue', 5: 'Vie', 6: 'Sáb', 7: 'Dom',
+}
+
+// Comidas del día seleccionado (fallback al primer día disponible)
+const meals = computed<DietMeal[]>(() => {
+  const byDay = mealsByDay.value
+  if (byDay[selectedDay.value]?.length) return byDay[selectedDay.value]
+  // Compatibilidad: plan legado sin day_of_week → usar clave null/0
+  const legacyKey = Object.keys(byDay).find(k => k === 'null' || k === '0')
+  if (legacyKey) return byDay[legacyKey as unknown as number] ?? []
+  // Cualquier día disponible
+  const first = Object.values(byDay)[0]
+  return first ?? []
+})
+
+// ─── Totales del día seleccionado ─────────────────────────────────────────────
 const macroTotals = computed(() => {
   let t = { kcal: 0, protein_g: 0, fat_g: 0, carbs_g: 0 }
   for (const meal of meals.value) {
@@ -185,6 +205,21 @@ function mealKcal(meal: DietMeal): number {
           style="background:#161616;color:#9CA3AF;border:1px solid rgba(255,255,255,0.08);">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           Recalcular
+        </button>
+      </div>
+
+      <!-- ── Selector de día ──────────────────────────────────────────────── -->
+      <div style="display:flex;gap:6px;margin-bottom:16px;overflow-x:auto;padding-bottom:2px;">
+        <button v-for="d in [1,2,3,4,5,6,7]" :key="d"
+          @click="selectedDay = d"
+          style="flex-shrink:0;border-radius:10px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s;border:1.5px solid;white-space:nowrap;"
+          :style="selectedDay === d
+            ? 'background:#1DF412;color:#000;border-color:#1DF412;'
+            : d === todayDow
+              ? 'background:rgba(29,244,18,0.06);color:#1DF412;border-color:rgba(29,244,18,0.3);'
+              : 'background:#161616;color:#9CA3AF;border-color:rgba(255,255,255,0.08);'">
+          {{ DAY_LABELS[d] }}
+          <span v-if="d === todayDow" style="margin-left:3px;font-size:8px;vertical-align:super;opacity:0.8;">hoy</span>
         </button>
       </div>
 
