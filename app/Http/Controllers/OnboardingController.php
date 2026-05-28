@@ -33,15 +33,14 @@ class OnboardingController extends Controller
             'injuries'                 => ['nullable', 'array'],
             'injuries.*.zone'          => ['required', 'string', 'in:knee,back,shoulder,wrist,ankle,neck,hip'],
             'injuries.*.notes'         => ['nullable', 'string', 'max:300'],
-            'days_per_week'            => ['required', 'integer', 'min:1', 'max:7'],
             'session_duration_minutes' => ['required', 'integer', 'min:15', 'max:180'],
             'preferred_muscles'        => ['nullable', 'array'],
             'preferred_muscles.*'      => ['string'],
             'split_type'               => ['nullable', 'in:auto,full_body,upper_lower,ppl,weider'],
             'has_trained_before'       => ['nullable', 'boolean'],
             'last_trained'             => ['nullable', 'in:never,currently,lt_1m,1_3m,3_6m,gt_6m'],
-            'training_days'            => ['required', 'array', 'min:1'],
-            'training_days.*'          => ['integer', 'between:1,7'],
+            'training_days'            => ['required', 'array', 'min:1', 'max:7'],
+            'training_days.*'          => ['integer', 'between:1,7', 'distinct'],
         ]);
 
         $user = $request->user();
