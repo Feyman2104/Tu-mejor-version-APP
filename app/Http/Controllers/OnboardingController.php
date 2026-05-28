@@ -20,6 +20,7 @@ class OnboardingController extends Controller
         $validated = $request->validate([
             'name'                     => ['required', 'string', 'max:255'],
             'age'                      => ['nullable', 'integer', 'min:10', 'max:100'],
+            'sex'                      => ['nullable', 'in:male,female,other'],
             'weight_kg'                => ['nullable', 'numeric', 'min:20', 'max:300'],
             'height_cm'                => ['nullable', 'integer', 'min:100', 'max:250'],
             'mobility'                 => ['nullable', 'in:good,average,limited'],
@@ -45,6 +46,7 @@ class OnboardingController extends Controller
         $user->update([
             'name'                     => $validated['name'],
             'age'                      => $validated['age'] ?? null,
+            'sex'                      => $validated['sex'] ?? null,
             'weight_kg'                => $validated['weight_kg'] ?? null,
             'height_cm'                => $validated['height_cm'] ?? null,
             'mobility'                 => $validated['mobility'] ?? null,

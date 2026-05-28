@@ -99,6 +99,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/nutrition', [NutritionController::class, 'index'])->name('nutrition.index');
     Route::get('/nutrition/{dietPlan}', [NutritionController::class, 'show'])->name('nutrition.show');
     Route::post('/nutrition/regenerate', [NutritionController::class, 'regenerate'])->name('nutrition.regenerate');
+    Route::post('/nutrition/meals/{meal}/items', [NutritionController::class, 'addItem'])->name('nutrition.items.store');
+    Route::patch('/nutrition/meal-items/{item}', [NutritionController::class, 'updateItem'])->name('nutrition.items.update');
+    Route::delete('/nutrition/meal-items/{item}', [NutritionController::class, 'destroyItem'])->name('nutrition.items.destroy');
 
     // Progreso
     Route::get('/progress', [ProgressController::class, 'index'])->name('progress.index');

@@ -187,7 +187,7 @@ const commonErrors = computed(() => {
 
               <!-- Instrucciones ───────────────────────────────────────────── -->
               <div v-if="instructions.length" style="margin-bottom:20px;">
-                <div style="font-size:10px;font-weight:700;color:#4B5563;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px;">
+                <div style="font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px;">
                   Cómo ejecutarlo
                 </div>
                 <div style="display:flex;flex-direction:column;gap:8px;">
@@ -205,7 +205,7 @@ const commonErrors = computed(() => {
 
               <!-- Errores comunes ─────────────────────────────────────────── -->
               <div v-if="commonErrors.length">
-                <div style="font-size:10px;font-weight:700;color:#4B5563;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px;">
+                <div style="font-size:10px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:12px;">
                   Errores frecuentes
                 </div>
                 <div style="display:flex;flex-direction:column;gap:6px;">

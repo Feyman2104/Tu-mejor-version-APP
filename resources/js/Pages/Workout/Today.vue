@@ -213,29 +213,9 @@ function confirmDropSets(): void {
   dropDialog.value = null
 }
 
-// ─── Swipe to delete series ────────────────────────────────────────────────────
-let swipeStartX     = 0
-const openSwipeKey  = ref<string | null>(null)
-
-function swipeKey(reId: number, idx: number): string { return `${reId}-${idx}` }
-
-function onSetTouchStart(e: TouchEvent, reId: number, idx: number): void {
-  swipeStartX = e.touches[0].clientX
-  const key = swipeKey(reId, idx)
-  if (openSwipeKey.value && openSwipeKey.value !== key) openSwipeKey.value = null
-}
-
-function onSetTouchEnd(e: TouchEvent, reId: number, idx: number): void {
-  const dx  = e.changedTouches[0].clientX - swipeStartX
-  const key = swipeKey(reId, idx)
-  if (dx < -50)                                   openSwipeKey.value = key
-  else if (dx > 20 && openSwipeKey.value === key) openSwipeKey.value = null
-}
-
 function deleteSet(re: RoutineExercise, idx: number): void {
   exerciseSets[re.id].splice(idx, 1)
   exerciseSets[re.id].forEach((s, i) => { s.setNumber = i + 1 })
-  openSwipeKey.value = null
 }
 
 // ─── Menú ⋮ por ejercicio ─────────────────────────────────────────────────────
@@ -923,7 +903,7 @@ function injuryWarning(re: RoutineExercise): string | null {
             <!-- Elapsed time (only when log active) -->
             <div v-if="activeLog && !activeLog.completed"
               style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:5px 12px;text-align:center;min-width:72px;">
-              <div style="font-size:9px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:1px;">⏱ Tiempo</div>
+              <div style="font-size:9px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:1px;">⏱ Tiempo</div>
               <div class="font-display font-bold" style="font-size:22px;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;line-height:1;">{{ elapsedFormatted }}</div>
             </div>
           </div>
@@ -970,7 +950,7 @@ function injuryWarning(re: RoutineExercise): string | null {
             <div class="font-display font-bold" style="font-size:18px;color:#fff;margin-bottom:2px;">
               {{ stat.value }}
             </div>
-            <div style="font-size:10px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">
+            <div style="font-size:10px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">
               {{ stat.label }}
             </div>
           </div>
@@ -1091,7 +1071,7 @@ function injuryWarning(re: RoutineExercise): string | null {
                 />
                 <div v-else
                   style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="m6.5 6.5 11 11"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/>
                     <path d="m3 10 7-7"/><path d="m14 21 7-7"/>
                   </svg>
@@ -1126,7 +1106,7 @@ function injuryWarning(re: RoutineExercise): string | null {
                     <!-- Botón ⋮ -->
                     <button v-if="activeLog && !activeLog.completed"
                       @click.stop="toggleMenu(re.id, $event)"
-                      style="background:none;border:none;cursor:pointer;padding:2px 4px;color:#4B5563;line-height:1;font-size:18px;letter-spacing:0.05em;">
+                      style="background:none;border:none;cursor:pointer;padding:2px 4px;color:#6B7280;line-height:1;font-size:18px;letter-spacing:0.05em;">
                       ···
                     </button>
                   </div>
@@ -1142,11 +1122,11 @@ function injuryWarning(re: RoutineExercise): string | null {
                     <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
                   </svg>
                   <span style="font-size:12px;font-weight:700;"
-                    :style="effectiveRest(re) === 0 ? 'color:#4B5563;' : 'color:#1DF412;'">
+                    :style="effectiveRest(re) === 0 ? 'color:#6B7280;' : 'color:#1DF412;'">
                     {{ restLabel(re) }}
                   </span>
                 </button>
-                <div style="font-size:11px;color:#374151;margin-top:2px;">
+                <div style="font-size:11px;color:#6B7280;margin-top:2px;">
                   Anterior: {{ prevLabel(re.exercise.id) }}
                 </div>
               </div>
@@ -1166,7 +1146,7 @@ function injuryWarning(re: RoutineExercise): string | null {
                 </div>
                 <!-- Pending -->
                 <div v-else
-                  style="width:30px;height:30px;border-radius:50%;background:#1A1A1A;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#374151;">
+                  style="width:30px;height:30px;border-radius:50%;background:#1A1A1A;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#6B7280;">
                   {{ re.id < 0 ? '+' : allExercises.findIndex(e => e.id === re.id) + 1 }}
                 </div>
               </button>
@@ -1178,7 +1158,7 @@ function injuryWarning(re: RoutineExercise): string | null {
 
               <!-- Header columnas -->
               <div class="grid"
-                style="grid-template-columns:40px 70px 1fr 1fr 36px;gap:6px;padding-bottom:6px;font-size:10px;color:#374151;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;text-align:center;">
+                style="grid-template-columns:40px 70px 1fr 1fr 36px;gap:6px;padding-bottom:6px;font-size:10px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;text-align:center;">
                 <span></span>
                 <span>ANT.</span>
                 <span
@@ -1191,24 +1171,14 @@ function injuryWarning(re: RoutineExercise): string | null {
                 <span></span>
               </div>
 
-              <!-- Filas de series con swipe-to-delete -->
+              <!-- Filas de series -->
               <div v-for="(set, idx) in exerciseSets[re.id]" :key="idx"
-                style="position:relative;overflow:hidden;margin-bottom:6px;border-radius:8px;"
+                style="position:relative;margin-bottom:6px;border-radius:8px;"
                 :style="set.isDropChild ? 'border-left:2px solid rgba(139,92,246,0.45);margin-left:10px;' : ''">
-                <!-- Botón eliminar (detrás, swipe) -->
-                <div style="position:absolute;right:0;top:0;bottom:0;width:80px;background:#EF4444;display:flex;align-items:center;justify-content:center;border-radius:0 8px 8px 0;">
-                  <button @click.stop="deleteSet(re, idx)"
-                    style="background:none;border:none;color:#fff;font-size:12px;font-weight:700;cursor:pointer;width:100%;height:100%;">
-                    Eliminar
-                  </button>
-                </div>
-                <!-- Fila de serie (encima, deslizable) -->
+                <!-- Fila de serie -->
                 <div
-                  @touchstart="onSetTouchStart($event, re.id, idx)"
-                  @touchend="onSetTouchEnd($event, re.id, idx)"
-                  style="display:grid;grid-template-columns:40px 70px 1fr 1fr 36px;gap:6px;align-items:center;padding:2px 0;transition:transform 0.2s ease,background 0.15s;"
+                  style="display:grid;grid-template-columns:40px 70px 1fr 1fr 36px;gap:6px;align-items:center;padding:2px 0;transition:background 0.15s;"
                   :style="{
-                    transform: `translateX(${openSwipeKey === swipeKey(re.id, idx) ? -80 : 0}px)`,
                     background: set.completed ? 'rgba(29,244,18,0.06)' : '#161616',
                   }">
 
@@ -1255,7 +1225,7 @@ function injuryWarning(re: RoutineExercise): string | null {
                       : 'background:#0D0D0D;border-color:rgba(255,255,255,0.1);'">
                     <svg v-if="set.completed" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                     <div v-else-if="set.saving" style="width:12px;height:12px;border:2px solid #1DF412;border-top-color:transparent;border-radius:50%;animation:spin 0.6s linear infinite;"/>
-                    <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                   </button>
                 </div>
               </div>
@@ -1272,7 +1242,7 @@ function injuryWarning(re: RoutineExercise): string | null {
                 <button
                   v-if="exerciseSets[re.id].length > 1 && !exerciseSets[re.id][exerciseSets[re.id].length - 1].completed"
                   @click="removeLastSet(re)"
-                  style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);color:#4B5563;border-radius:8px;padding:7px 10px;font-size:12px;cursor:pointer;">
+                  style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);color:#6B7280;border-radius:8px;padding:7px 10px;font-size:12px;cursor:pointer;">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 </button>
               </div>
@@ -1281,7 +1251,7 @@ function injuryWarning(re: RoutineExercise): string | null {
             <!-- Notas del ejercicio (sesión + nota fija de rutina) -->
             <div v-if="!collapsedForDrag && !reorderMode && (exerciseStatus(re) !== 'pending' || exerciseNotes[re.id] !== undefined)"
               style="padding:0 16px 12px;">
-              <div v-if="re.notes" style="font-size:12px;color:#4B5563;line-height:1.5;margin-bottom:6px;">
+              <div v-if="re.notes" style="font-size:12px;color:#6B7280;line-height:1.5;margin-bottom:6px;">
                 💡 {{ re.notes }}
               </div>
               <textarea
@@ -1294,7 +1264,7 @@ function injuryWarning(re: RoutineExercise): string | null {
             <!-- Botón para abrir notas cuando está pendiente y no hay nota aún -->
             <button v-if="!collapsedForDrag && !reorderMode && exerciseStatus(re) === 'pending' && exerciseNotes[re.id] === undefined"
               @click.stop="exerciseNotes[re.id] = ''"
-              style="background:none;border:none;color:#374151;font-size:11px;cursor:pointer;padding:0 16px 10px;display:block;">
+              style="background:none;border:none;color:#6B7280;font-size:11px;cursor:pointer;padding:0 16px 10px;display:block;">
               + Nota
             </button>
           </div>
@@ -1316,7 +1286,7 @@ function injuryWarning(re: RoutineExercise): string | null {
         <div v-if="activeLog && !activeLog.completed" style="margin-top:24px;">
 
           <!-- Mood selector -->
-          <div style="font-size:10px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">
+          <div style="font-size:10px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">
             ¿Cómo te sientes hoy?
           </div>
           <div style="display:flex;gap:8px;margin-bottom:20px;">
@@ -1327,7 +1297,7 @@ function injuryWarning(re: RoutineExercise): string | null {
                 : 'background:#161616;border-color:rgba(255,255,255,0.06);'">
               <span style="font-size:20px;">{{ m.emoji }}</span>
               <span style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;"
-                :style="mood === m.id ? 'color:#1DF412;' : 'color:#4B5563;'">
+                :style="mood === m.id ? 'color:#1DF412;' : 'color:#6B7280;'">
                 {{ m.label }}
               </span>
             </button>
@@ -1357,7 +1327,7 @@ function injuryWarning(re: RoutineExercise): string | null {
             Descartar sesión
           </button>
           <p v-if="!allDone && completedCount > 0" class="text-center"
-            style="font-size:12px;color:#374151;margin-top:8px;">
+            style="font-size:12px;color:#6B7280;margin-top:8px;">
             {{ totalSets - completedCount }} series pendientes
           </p>
         </div>
@@ -1380,14 +1350,14 @@ function injuryWarning(re: RoutineExercise): string | null {
             ]" :key="s.label"
               style="background:rgba(29,244,18,0.06);border:1px solid rgba(29,244,18,0.12);border-radius:12px;padding:14px;">
               <div class="font-display font-bold" style="font-size:20px;color:#1DF412;">{{ s.value }}</div>
-              <div style="font-size:10px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-top:2px;">{{ s.label }}</div>
+              <div style="font-size:10px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-top:2px;">{{ s.label }}</div>
             </div>
           </div>
 
           <p style="font-size:14px;color:#9CA3AF;margin-bottom:4px;">
             Excelente trabajo. Mañana seguimos 💪
           </p>
-          <p style="font-size:12px;color:#374151;">
+          <p style="font-size:12px;color:#6B7280;">
             Los datos de esta sesión se han guardado en tu historial.
           </p>
         </div>
@@ -1570,7 +1540,7 @@ function injuryWarning(re: RoutineExercise): string | null {
             {{ n }}
           </button>
         </div>
-        <div style="font-size:11px;color:#4B5563;margin-bottom:18px;">bajadas adicionales</div>
+        <div style="font-size:11px;color:#6B7280;margin-bottom:18px;">bajadas adicionales</div>
         <div style="display:flex;gap:10px;">
           <button @click="dropDialog = null"
             style="flex:1;padding:13px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;background:transparent;color:#6B7280;cursor:pointer;font-size:14px;font-weight:600;">
@@ -1609,7 +1579,7 @@ function injuryWarning(re: RoutineExercise): string | null {
             style="scroll-snap-align:center;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:color 0.1s;"
             :style="effectiveRest(restPickerRe) === s
               ? 'color:#1DF412;font-size:20px;font-weight:700;'
-              : 'color:#4B5563;font-size:16px;font-weight:600;'">
+              : 'color:#6B7280;font-size:16px;font-weight:600;'">
             {{ s === 0 ? '— APAGADO' : s < 60 ? s + 's' : Math.floor(s/60) + ':' + String(s%60).padStart(2,'0') }}
           </div>
         </div>

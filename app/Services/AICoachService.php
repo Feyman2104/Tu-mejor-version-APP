@@ -151,6 +151,8 @@ class AICoachService
         };
 
         $prompt = <<<PROMPT
+IDIOMA OBLIGATORIO: Responde ÚNICAMENTE en español. Nunca uses caracteres chinos, japoneses, coreanos ni de ningún otro idioma. Si piensas en otro idioma, traduce TODO al español antes de responder. Esta es la regla más importante.
+
 Eres "Coach IA", el entrenador personal y asesor de nutrición de "Tu Mejor Versión". Eres empático, directo y práctico — como un amigo que sabe mucho de fitness, no un artículo universitario.
 
 PERFIL DEL USUARIO:
@@ -299,16 +301,18 @@ PROMPT;
             throw new \RuntimeException('MiniMax API error: ' . $response->status() . ' ' . $response->body());
         }
 
-        yield from $this->filterThinkBlocks(
-            $this->parseSSEStream(
-                $response->toPsrResponse()->getBody(),
-                function (array $data): ?string {
-                    foreach ($data['choices'] ?? [] as $choice) {
-                        $content = $choice['delta']['content'] ?? null;
-                        if ($content) return $content;
+        yield from $this->filterCJK(
+            $this->filterThinkBlocks(
+                $this->parseSSEStream(
+                    $response->toPsrResponse()->getBody(),
+                    function (array $data): ?string {
+                        foreach ($data['choices'] ?? [] as $choice) {
+                            $content = $choice['delta']['content'] ?? null;
+                            if ($content) return $content;
+                        }
+                        return null;
                     }
-                    return null;
-                }
+                )
             )
         );
     }
@@ -356,6 +360,17 @@ PROMPT;
         }
 
         if (! $inThink && $buffer !== '') yield $buffer;
+    }
+
+    /**
+     * Elimina caracteres CJK (chino/japonés/coreano) que MiniMax filtra ocasionalmente.
+     */
+    private function filterCJK(\Generator $stream): \Generator
+    {
+        foreach ($stream as $chunk) {
+            $clean = preg_replace('/[\x{4E00}-\x{9FFF}\x{3400}-\x{4DBF}\x{F900}-\x{FAFF}\x{3040}-\x{309F}\x{30A0}-\x{30FF}\x{AC00}-\x{D7AF}]/u', '', $chunk);
+            if ($clean !== '') yield $clean;
+        }
     }
 
     /**

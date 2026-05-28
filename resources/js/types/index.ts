@@ -120,6 +120,56 @@ export interface WorkoutLog {
   sets?: WorkoutSet[]
 }
 
+export interface NutritionFood {
+  id: number
+  name: string
+  category: string
+  kcal: number
+  protein_g: number
+  fat_g: number
+  carbs_g: number
+  fiber_g: number | null
+  portion_g: number
+  density: number | null
+  grams_per_unit: number | null
+}
+
+export interface DietMealItem {
+  id: number
+  diet_meal_id: number
+  food_id: number
+  food: NutritionFood | null
+  quantity: number
+  unit: string
+  portion_g: number
+  kcal: number
+  protein_g: number
+  fat_g: number
+  carbs_g: number
+}
+
+export interface DietMeal {
+  id: number
+  diet_plan_id: number
+  meal_number: number
+  name: string
+  time: string
+  target_kcal: number
+  target_protein_g: number
+  items: DietMealItem[]
+}
+
+export interface DietPlan {
+  id: number
+  name: string
+  goal: string
+  daily_kcal_target: number
+  protein_g_target: number
+  fat_g_target: number
+  carbs_g_target: number
+  is_active: boolean
+}
+
 export interface ProgressEntry {
   id: number
   weight_kg: number | null

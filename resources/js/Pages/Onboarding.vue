@@ -10,15 +10,15 @@ defineOptions({ layout: GuestLayout })
 const page = usePage()
 const user = computed(() => page.props.auth.user as User)
 
-// ─── Imágenes (5 fotos, rotan entre los 10 pasos) ────────────────────────────
-const STEP_IMAGES = [
-  'https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=900&h=1200&fit=crop&q=85',
-  'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=900&h=1200&fit=crop&q=85',
-  'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=900&h=1200&fit=crop&q=85',
-  'https://images.unsplash.com/photo-1605296867424-35fc25c9212a?w=900&h=1200&fit=crop&q=85',
-  'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=900&h=1200&fit=crop&q=85',
+// ─── Paneles (gradientes CSS por fase, sin dependencias externas) ─────────────
+const STEP_PANELS = [
+  { bg: `radial-gradient(ellipse 90% 60% at 15% 85%, rgba(29,244,18,0.22) 0%, transparent 55%), radial-gradient(ellipse 60% 40% at 80% 15%, rgba(29,244,18,0.10) 0%, transparent 50%), #020302` },
+  { bg: `radial-gradient(ellipse 70% 70% at 70% 30%, rgba(59,130,246,0.22) 0%, transparent 60%), radial-gradient(ellipse 50% 40% at 15% 75%, rgba(29,244,18,0.10) 0%, transparent 50%), #020308` },
+  { bg: `radial-gradient(ellipse 80% 55% at 50% 100%, rgba(245,158,11,0.25) 0%, transparent 60%), radial-gradient(ellipse 40% 30% at 75% 20%, rgba(245,158,11,0.12) 0%, transparent 45%), #050400` },
+  { bg: `radial-gradient(ellipse 65% 75% at 30% 50%, rgba(139,92,246,0.22) 0%, transparent 58%), radial-gradient(ellipse 50% 35% at 85% 85%, rgba(29,244,18,0.10) 0%, transparent 50%), #040306` },
+  { bg: `radial-gradient(ellipse 75% 65% at 55% 40%, rgba(29,244,18,0.28) 0%, transparent 62%), radial-gradient(ellipse 45% 35% at 10% 85%, rgba(29,244,18,0.15) 0%, transparent 50%), #020402` },
 ]
-const currentImage = computed(() => STEP_IMAGES[step.value % STEP_IMAGES.length])
+const currentPanel = computed(() => STEP_PANELS[step.value % STEP_PANELS.length])
 
 // ─── Meta por paso ────────────────────────────────────────────────────────────
 const STEP_META = [
@@ -306,8 +306,12 @@ function toNum(e: Event): number | null {
 
       <!-- ── Panel imagen: h-260px móvil, fixed 40% escritorio ── -->
       <div class="relative overflow-hidden h-[260px] md:fixed md:inset-y-0 md:left-0 md:w-[40%] md:h-screen">
-        <img :src="currentImage" alt="" class="w-full h-full object-cover transition-opacity duration-300" />
-        <div class="absolute inset-0" style="background:linear-gradient(180deg,rgba(0,0,0,0.4) 0%,rgba(0,0,0,0.2) 40%,rgba(0,0,0,0.95) 100%);"></div>
+        <div class="absolute inset-0 transition-all duration-700" :style="{ background: currentPanel.bg }"></div>
+        <svg class="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" style="opacity:0.035;">
+          <defs><pattern id="onb-grid" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M 48 0 L 0 0 0 48" fill="none" stroke="white" stroke-width="0.6"/></pattern></defs>
+          <rect width="100%" height="100%" fill="url(#onb-grid)"/>
+        </svg>
+        <div class="absolute inset-0" style="background:linear-gradient(180deg,rgba(0,0,0,0.25) 0%,rgba(0,0,0,0.05) 40%,rgba(0,0,0,0.92) 100%);"></div>
 
         <!-- ── Móvil: barra superior ── -->
         <div class="absolute inset-x-0 top-0 flex items-center gap-3 md:hidden" style="padding:20px;">
@@ -449,7 +453,7 @@ function toNum(e: Event): number | null {
                       <div style="font-size:13px;font-weight:600;" :style="form.sex === opt.id ? 'color:#1DF412;' : 'color:#9CA3AF;'">{{ opt.label }}</div>
                     </button>
                   </div>
-                  <p style="font-size:11px;color:#4B5563;margin-top:5px;">Usado para calcular tu metabolismo basal con precisión</p>
+                  <p style="font-size:11px;color:#6B7280;margin-top:5px;">Usado para calcular tu metabolismo basal con precisión</p>
                 </div>
 
                 <!-- Edad / Peso / Altura -->
@@ -463,7 +467,7 @@ function toNum(e: Event): number | null {
                       @focus="($event.target as HTMLInputElement).style.borderColor='rgba(29,244,18,0.4)'"
                       @blur="($event.target as HTMLInputElement).style.borderColor='rgba(255,255,255,0.08)'"
                     />
-                    <div style="font-size:12px;color:#4B5563;text-align:center;margin-top:3px;">años</div>
+                    <div style="font-size:12px;color:#6B7280;text-align:center;margin-top:3px;">años</div>
                   </div>
                   <div>
                     <label style="font-size:13px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:6px;">Peso</label>
@@ -474,7 +478,7 @@ function toNum(e: Event): number | null {
                       @focus="($event.target as HTMLInputElement).style.borderColor='rgba(29,244,18,0.4)'"
                       @blur="($event.target as HTMLInputElement).style.borderColor='rgba(255,255,255,0.08)'"
                     />
-                    <div style="font-size:12px;color:#4B5563;text-align:center;margin-top:3px;">kg</div>
+                    <div style="font-size:12px;color:#6B7280;text-align:center;margin-top:3px;">kg</div>
                   </div>
                   <div>
                     <label style="font-size:13px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:6px;">Altura</label>
@@ -485,7 +489,7 @@ function toNum(e: Event): number | null {
                       @focus="($event.target as HTMLInputElement).style.borderColor='rgba(29,244,18,0.4)'"
                       @blur="($event.target as HTMLInputElement).style.borderColor='rgba(255,255,255,0.08)'"
                     />
-                    <div style="font-size:12px;color:#4B5563;text-align:center;margin-top:3px;">cm</div>
+                    <div style="font-size:12px;color:#6B7280;text-align:center;margin-top:3px;">cm</div>
                   </div>
                 </div>
 
@@ -503,7 +507,7 @@ function toNum(e: Event): number | null {
                   </div>
                 </div>
 
-                <p style="font-size:12px;color:#4B5563;text-align:center;margin-top:4px;">Todos los campos son opcionales</p>
+                <p style="font-size:12px;color:#6B7280;text-align:center;margin-top:4px;">Todos los campos son opcionales</p>
               </div>
             </template>
 
@@ -789,7 +793,7 @@ function toNum(e: Event): number | null {
                   {{ opt.label }}
                 </button>
               </div>
-              <p style="font-size:12px;color:#4B5563;margin-top:16px;">Selecciona los grupos que quieras priorizar (opcional)</p>
+              <p style="font-size:12px;color:#6B7280;margin-top:16px;">Selecciona los grupos que quieras priorizar (opcional)</p>
             </template>
 
             <!-- ═══ PASO 12: Resumen ═══ -->
@@ -863,7 +867,7 @@ function toNum(e: Event): number | null {
               class="w-full flex items-center justify-center gap-2 font-bold"
               style="border-radius:14px;padding:16px 24px;font-size:16px;cursor:pointer;transition:all 0.2s;border:none;letter-spacing:-0.01em;"
               :style="(!canContinue || form.processing)
-                ? 'background:#1A1A1A;color:#4B5563;cursor:not-allowed;'
+                ? 'background:#1A1A1A;color:#6B7280;cursor:not-allowed;'
                 : 'background:#1DF412;color:#000;box-shadow:0 4px 24px rgba(29,244,18,0.3);'">
               {{ ctaLabel }}
               <svg v-if="!form.processing" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>

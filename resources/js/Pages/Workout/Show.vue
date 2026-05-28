@@ -135,7 +135,7 @@ function focusColor(focus: string): string {
           <div class="font-display font-bold" style="font-size:24px;letter-spacing:-0.02em;color:#fff;margin-bottom:2px;">
             {{ stat.value }}
           </div>
-          <div style="font-size:10px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">
+          <div style="font-size:10px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;">
             {{ stat.label }}
           </div>
         </div>
@@ -143,7 +143,7 @@ function focusColor(focus: string): string {
 
       <!-- Récords personales ────────────────────────────────────────────────── -->
       <div v-if="prs.length" style="margin-bottom:20px;">
-        <div style="font-size:10px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">
+        <div style="font-size:10px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">
           🏆 Récords personales
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;">
@@ -166,7 +166,7 @@ function focusColor(focus: string): string {
 
       <!-- Desglose por ejercicio ────────────────────────────────────────────── -->
       <div v-if="exerciseGroups.length" style="margin-bottom:24px;">
-        <div style="font-size:10px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">
+        <div style="font-size:10px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">
           Ejercicios realizados
         </div>
         <div style="display:flex;flex-direction:column;gap:10px;">
@@ -195,18 +195,18 @@ function focusColor(focus: string): string {
                 <div style="font-size:14px;font-weight:700;color:#1DF412;">
                   {{ Math.round(group.sets.reduce((s, set) => s + (parseFloat(String(set.weight_kg ?? 0)) * (set.reps_done ?? 0)), 0)) }} kg
                 </div>
-                <div style="font-size:10px;color:#374151;">volumen</div>
+                <div style="font-size:10px;color:#6B7280;">volumen</div>
               </div>
             </div>
 
             <!-- Tabla de sets -->
             <div style="padding:0 14px 12px;">
-              <div style="display:grid;grid-template-columns:32px 1fr 1fr 1fr;gap:4px;padding-bottom:6px;font-size:9px;color:#374151;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;text-align:center;">
+              <div style="display:grid;grid-template-columns:32px 1fr 1fr 1fr;gap:4px;padding-bottom:6px;font-size:9px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;text-align:center;">
                 <span>Set</span><span>Kg</span><span>Reps</span><span>RPE</span>
               </div>
               <div v-for="set in group.sets.sort((a, b) => a.set_number - b.set_number)" :key="set.id"
                 style="display:grid;grid-template-columns:32px 1fr 1fr 1fr;gap:4px;padding:6px 0;border-top:1px solid rgba(255,255,255,0.04);text-align:center;">
-                <span style="font-size:12px;font-weight:700;color:#4B5563;">{{ set.set_number }}</span>
+                <span style="font-size:12px;font-weight:700;color:#6B7280;">{{ set.set_number }}</span>
                 <span style="font-size:13px;font-weight:700;color:#fff;">{{ set.weight_kg ?? '—' }}</span>
                 <span style="font-size:13px;font-weight:700;color:#fff;">{{ set.reps_done ?? '—' }}</span>
                 <span style="font-size:12px;color:#6B7280;">{{ set.rpe ?? '—' }}</span>
@@ -219,7 +219,7 @@ function focusColor(focus: string): string {
       <!-- Sin sets registrados -->
       <div v-if="log.sets.length === 0"
         style="background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:14px;padding:32px;text-align:center;margin-bottom:24px;">
-        <p style="font-size:14px;color:#4B5563;">No se registraron series en esta sesión.</p>
+        <p style="font-size:14px;color:#6B7280;">No se registraron series en esta sesión.</p>
       </div>
 
       <!-- Acciones ────────────────────────────────────────────────────────────── -->

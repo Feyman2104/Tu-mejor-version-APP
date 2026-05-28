@@ -11,13 +11,14 @@ class DietMealItem extends Model
     use HasFactory;
 
     protected $fillable = [
-        'diet_meal_id', 'food_id', 'portion_g',
+        'diet_meal_id', 'food_id', 'quantity', 'unit', 'portion_g',
         'kcal', 'protein_g', 'fat_g', 'carbs_g',
     ];
 
     protected function casts(): array
     {
         return [
+            'quantity'   => 'float',
             'portion_g'  => 'float',
             'kcal'       => 'float',
             'protein_g'  => 'float',

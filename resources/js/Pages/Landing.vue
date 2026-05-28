@@ -256,7 +256,7 @@ const progressMetrics = [
 
           <!-- Producto -->
           <div>
-            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#4B5563;margin-bottom:16px;">Producto</div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#6B7280;margin-bottom:16px;">Producto</div>
             <div class="flex flex-col gap-3">
               <Link :href="route('register')" style="font-size:14px;color:#9CA3AF;text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#9CA3AF'">Comenzar gratis</Link>
               <Link :href="route('login')" style="font-size:14px;color:#9CA3AF;text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#9CA3AF'">Iniciar sesión</Link>
@@ -268,7 +268,7 @@ const progressMetrics = [
 
           <!-- Empresa -->
           <div>
-            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#4B5563;margin-bottom:16px;">Empresa</div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#6B7280;margin-bottom:16px;">Empresa</div>
             <div class="flex flex-col gap-3">
               <a href="#" style="font-size:14px;color:#9CA3AF;text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#9CA3AF'">Acerca de</a>
               <a href="#" style="font-size:14px;color:#9CA3AF;text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#9CA3AF'">Blog</a>
@@ -279,7 +279,7 @@ const progressMetrics = [
 
           <!-- Legal -->
           <div>
-            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#4B5563;margin-bottom:16px;">Legal</div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#6B7280;margin-bottom:16px;">Legal</div>
             <div class="flex flex-col gap-3">
               <a href="#" style="font-size:14px;color:#9CA3AF;text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#9CA3AF'">Términos de uso</a>
               <a href="#" style="font-size:14px;color:#9CA3AF;text-decoration:none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#9CA3AF'">Política de privacidad</a>
@@ -292,8 +292,8 @@ const progressMetrics = [
         <!-- Copyright bar -->
         <div class="px-6 md:px-16 py-5 flex flex-col md:flex-row justify-between items-center gap-3"
           style="border-top:1px solid rgba(255,255,255,0.04);">
-          <span style="font-size:12px;color:#4B5563;">© 2026 Tu Mejor Versión. Todos los derechos reservados.</span>
-          <span style="font-size:12px;color:#4B5563;">Hecho con ❤️ para estudiantes universitarios</span>
+          <span style="font-size:12px;color:#6B7280;">© 2026 Tu Mejor Versión. Todos los derechos reservados.</span>
+          <span style="font-size:12px;color:#6B7280;">Hecho con ❤️ para estudiantes universitarios</span>
         </div>
       </footer>
 

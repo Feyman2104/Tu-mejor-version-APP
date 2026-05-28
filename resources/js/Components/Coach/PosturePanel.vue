@@ -340,7 +340,7 @@ function scoreColor(val?: number): string {
 
       <!-- Puntos a mejorar -->
       <div>
-        <div style="font-size:10px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">
+        <div style="font-size:10px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">
           Puntos a mejorar
         </div>
 
@@ -428,7 +428,7 @@ function scoreColor(val?: number): string {
 
       <!-- Título del ejercicio -->
       <div style="margin-bottom:20px;">
-        <div style="font-size:10px;color:#4B5563;text-transform:uppercase;letter-spacing:0.14em;font-weight:700;margin-bottom:6px;">Análisis de técnica</div>
+        <div style="font-size:10px;color:#6B7280;text-transform:uppercase;letter-spacing:0.14em;font-weight:700;margin-bottom:6px;">Análisis de técnica</div>
         <div class="font-display" style="font-size:30px;font-weight:900;color:#fff;line-height:1.05;text-transform:uppercase;margin-bottom:10px;">
           {{ knowledge?.name_es }}
         </div>
@@ -458,7 +458,7 @@ function scoreColor(val?: number): string {
       </div>
 
       <!-- Puntos clave de ejecución -->
-      <div style="font-size:10px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:12px;">
+      <div style="font-size:10px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:12px;">
         Puntos clave de ejecución
       </div>
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px;">
@@ -495,7 +495,7 @@ function scoreColor(val?: number): string {
 
       <!-- Exercise selector (solo antes de iniciar) -->
       <div v-if="!started && !initializing" style="margin-bottom:16px;">
-        <div style="font-size:10px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">Ejercicio a analizar</div>
+        <div style="font-size:10px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">Ejercicio a analizar</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;">
           <button v-for="ex in EXERCISES" :key="ex.id"
             @click="selectedExercise = ex.id"
@@ -508,7 +508,7 @@ function scoreColor(val?: number): string {
         </div>
 
         <!-- Selector de cámara -->
-        <div style="font-size:10px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin:16px 0 10px;">Cámara</div>
+        <div style="font-size:10px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin:16px 0 10px;">Cámara</div>
         <div style="display:flex;gap:6px;">
           <button @click="facingMode !== 'user' && switchCamera()"
             style="display:flex;align-items:center;gap:6px;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;border:1.5px solid;"
@@ -694,7 +694,7 @@ function scoreColor(val?: number): string {
 
       <!-- Live feedback -->
       <div v-if="started">
-        <div style="font-size:10px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">Feedback en vivo</div>
+        <div style="font-size:10px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">Feedback en vivo</div>
         <div v-if="currentFeedback.length === 0" style="text-align:center;padding:16px 0;">
           <p style="font-size:12px;color:#6B7280;">Posiciónate frente a la cámara para recibir correcciones.</p>
         </div>

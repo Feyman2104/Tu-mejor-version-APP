@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { Link, usePage } from '@inertiajs/vue3'
 import AppLayout from '@/Layouts/AppLayout.vue'
 import Sparkline from '@/Components/Charts/Sparkline.vue'
@@ -95,6 +95,7 @@ const displayWeightSeries = computed(() => {
 })
 
 const animatedValues = ref<Record<string, number>>({})
+const _animTimers: ReturnType<typeof setInterval>[] = []
 onMounted(() => {
   const targets = [props.streak, props.workoutsThisMonth, props.workoutsThisWeek]
   targets.forEach((v, i) => {
@@ -111,8 +112,10 @@ onMounted(() => {
         animatedValues.value[key] = Math.floor(current)
       }
     }, 20)
+    _animTimers.push(timer)
   })
 })
+onUnmounted(() => { _animTimers.forEach(clearInterval) })
 </script>
 
 <template>
@@ -220,7 +223,7 @@ onMounted(() => {
               </div>
             </div>
             <p style="font-size:13px;color:#9CA3AF;line-height:1.5;margin-bottom:16px;">El descanso es parte del entrenamiento. Hoy tu cuerpo se recupera y crece. 💪</p>
-            <div style="font-size:11px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">O entrena otro día:</div>
+            <div style="font-size:11px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">O entrena otro día:</div>
             <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
               <Link v-for="day in routine!.days" :key="day.id"
                 :href="route('workout.today')"
@@ -241,7 +244,7 @@ onMounted(() => {
                   <span :style="{ color: focusColor(todayDay!.focus) }">●</span>
                   <span style="font-size:11px;color:#9CA3AF;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">Hoy</span>
                 </div>
-                <span style="font-size:11px;color:#4B5563;">{{ todayDay!.exercises.length }} ejercicios</span>
+                <span style="font-size:11px;color:#6B7280;">{{ todayDay!.exercises.length }} ejercicios</span>
               </div>
               <div class="font-display font-bold" style="font-size:20px;letter-spacing:-0.01em;">{{ todayDay!.name }}</div>
             </div>
@@ -260,13 +263,13 @@ onMounted(() => {
                 </div>
                 <div style="flex:1;min-width:0;">
                   <div style="font-size:13px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ re.exercise?.name }}</div>
-                  <div style="font-size:11px;color:#4B5563;">{{ re.sets }} × {{ re.reps }}</div>
+                  <div style="font-size:11px;color:#6B7280;">{{ re.sets }} × {{ re.reps }}</div>
                 </div>
                 <div v-if="todayLog?.completed" style="width:20px;height:20px;border-radius:50%;background:#1DF412;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
               </div>
-              <div v-if="todayDay!.exercises.length > 4" style="padding:8px 0 2px;font-size:12px;color:#374151;text-align:center;">
+              <div v-if="todayDay!.exercises.length > 4" style="padding:8px 0 2px;font-size:12px;color:#6B7280;text-align:center;">
                 +{{ todayDay!.exercises.length - 4 }} ejercicios más
               </div>
             </div>
@@ -395,7 +398,7 @@ onMounted(() => {
                   </div>
                 </div>
                 <p style="font-size:14px;color:#9CA3AF;line-height:1.6;margin-bottom:20px;">El descanso es parte del entrenamiento. Hoy tu cuerpo se recupera y crece. 💪</p>
-                <div style="font-size:11px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">O entrena otro día:</div>
+                <div style="font-size:11px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">O entrena otro día:</div>
                 <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
                   <Link v-for="day in routine!.days" :key="day.id"
                     :href="route('workout.today')"
@@ -417,7 +420,7 @@ onMounted(() => {
                       <span :style="{ color: focusColor(todayDay.focus) }">●</span>
                       <span style="font-size:11px;color:#9CA3AF;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;">Hoy</span>
                     </div>
-                    <span style="font-size:12px;color:#4B5563;">{{ todayDay.exercises.length }} ejercicios</span>
+                    <span style="font-size:12px;color:#6B7280;">{{ todayDay.exercises.length }} ejercicios</span>
                   </div>
                   <div class="font-display font-bold" style="font-size:24px;letter-spacing:-0.01em;">{{ todayDay.name }}</div>
                 </div>
@@ -436,13 +439,13 @@ onMounted(() => {
                     </div>
                     <div style="flex:1;min-width:0;">
                       <div style="font-size:14px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ re.exercise?.name }}</div>
-                      <div style="font-size:12px;color:#4B5563;">{{ re.sets }} × {{ re.reps }}</div>
+                      <div style="font-size:12px;color:#6B7280;">{{ re.sets }} × {{ re.reps }}</div>
                     </div>
                     <div v-if="todayLog?.completed" style="width:22px;height:22px;border-radius:50%;background:#1DF412;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                     </div>
                   </div>
-                  <div v-if="todayDay.exercises.length > 5" style="padding:10px 0 2px;font-size:12px;color:#374151;text-align:center;">
+                  <div v-if="todayDay.exercises.length > 5" style="padding:10px 0 2px;font-size:12px;color:#6B7280;text-align:center;">
                     +{{ todayDay.exercises.length - 5 }} ejercicios más
                   </div>
                 </div>
@@ -478,11 +481,12 @@ onMounted(() => {
             </div>
 
             <!-- Quick actions row -->
-            <div class="grid grid-cols-3 gap-4">
+            <div class="grid grid-cols-4 gap-4">
               <Link v-for="action in [
                 { label:'Coach IA', desc:'Pregunta lo que quieras', route:'chat.index', icon:'message' },
                 { label:'Postura', desc:'Analiza tu forma', route:'posture.index', icon:'camera' },
                 { label:'Progreso', desc:'Registra tu evolución', route:'progress.index', icon:'chart' },
+                { label:'Ejercicios', desc:'Ver todos', route:'exercises.index', icon:'dumbbell' },
               ]" :key="action.route" :href="route(action.route)"
                 class="flex flex-col gap-2 transition-all group"
                 style="background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:20px;text-decoration:none;"
@@ -491,6 +495,7 @@ onMounted(() => {
                   <svg v-if="action.icon === 'message'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
                   <svg v-if="action.icon === 'camera'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                   <svg v-if="action.icon === 'chart'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                  <svg v-if="action.icon === 'dumbbell'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/></svg>
                 </div>
                 <span class="font-display font-bold" style="font-size:16px;color:#fff;letter-spacing:-0.01em;">{{ action.label }}</span>
                 <span style="font-size:12px;color:#9CA3AF;">{{ action.desc }}</span>

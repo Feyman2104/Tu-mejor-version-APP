@@ -95,7 +95,7 @@ function submit() {
           </div>
           <div class="flex items-center gap-3" style="margin-top:14px;margin-bottom:18px;">
             <div class="flex-1" style="height:1px;background:rgba(255,255,255,0.06);"></div>
-            <span style="font-size:11px;color:#4B5563;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">o con email</span>
+            <span style="font-size:11px;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">o con email</span>
             <div class="flex-1" style="height:1px;background:rgba(255,255,255,0.06);"></div>
           </div>
         </div>
@@ -231,7 +231,13 @@ function submit() {
       <div class="flex-1 flex flex-col relative">
 
         <!-- Top bar -->
-        <div class="flex justify-end items-center" style="padding:32px 64px;">
+        <div class="flex justify-between items-center" style="padding:32px 64px;">
+          <button @click="router.visit(route('dashboard'))"
+            class="flex items-center gap-2"
+            style="background:transparent;border:none;font-size:14px;font-weight:500;padding:8px;cursor:pointer;color:#9CA3AF;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            Volver
+          </button>
           <div style="font-size:13px;color:#9CA3AF;">
             ¿Ya tienes cuenta?
             <Link :href="route('login')" style="color:#1DF412;font-weight:700;text-decoration:none;margin-left:4px;">Inicia sesión</Link>
@@ -274,7 +280,7 @@ function submit() {
               </div>
               <div class="flex items-center gap-3" style="margin-top:16px;margin-bottom:20px;">
                 <div class="flex-1" style="height:1px;background:rgba(255,255,255,0.06);"></div>
-                <span style="font-size:11px;color:#4B5563;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">o continúa con email</span>
+                <span style="font-size:11px;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">o continúa con email</span>
                 <div class="flex-1" style="height:1px;background:rgba(255,255,255,0.06);"></div>
               </div>
             </div>

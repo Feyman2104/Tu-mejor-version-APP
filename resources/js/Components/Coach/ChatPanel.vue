@@ -151,7 +151,7 @@ function onKeydown(e: KeyboardEvent) {
           <div style="background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:4px 16px 16px 16px;padding:10px 14px;">
             <div v-if="msg.content" style="font-size:13px;line-height:1.65;color:#fff;white-space:pre-wrap;">{{ msg.content }}</div>
             <div v-else style="display:flex;gap:4px;align-items:center;padding:2px 0;">
-              <span v-for="i in 3" :key="i" style="width:6px;height:6px;border-radius:50%;background:#4B5563;" :style="`animation:bounce 1.2s infinite;animation-delay:${(i-1)*0.2}s`"></span>
+              <span v-for="i in 3" :key="i" style="width:6px;height:6px;border-radius:50%;background:#6B7280;" :style="`animation:bounce 1.2s infinite;animation-delay:${(i-1)*0.2}s`"></span>
             </div>
           </div>
         </div>

@@ -15,19 +15,42 @@ class Food extends Model
 
     protected $fillable = [
         'name', 'slug', 'category', 'kcal', 'protein_g', 'fat_g',
-        'carbs_g', 'fiber_g', 'portion_g', 'tcac_code',
+        'carbs_g', 'fiber_g', 'portion_g', 'density', 'grams_per_unit', 'tcac_code',
     ];
 
     protected function casts(): array
     {
         return [
-            'kcal'      => 'float',
-            'protein_g' => 'float',
-            'fat_g'     => 'float',
-            'carbs_g'   => 'float',
-            'fiber_g'   => 'float',
-            'portion_g' => 'float',
+            'kcal'           => 'float',
+            'protein_g'      => 'float',
+            'fat_g'          => 'float',
+            'carbs_g'        => 'float',
+            'fiber_g'        => 'float',
+            'portion_g'      => 'float',
+            'density'        => 'float',
+            'grams_per_unit' => 'float',
         ];
+    }
+
+    /**
+     * Unidades de medida ofrecidas para este alimento.
+     * Siempre masa (g/kg/oz); volumen (ml/l) si es líquido; unidad si tiene grams_per_unit.
+     *
+     * @return array<int, string>
+     */
+    public function availableUnits(): array
+    {
+        $units = ['g', 'kg', 'oz'];
+
+        if (in_array($this->category, ['bebidas', 'sopas'], true)) {
+            array_push($units, 'ml', 'l');
+        }
+
+        if ($this->grams_per_unit !== null && $this->grams_per_unit > 0) {
+            $units[] = 'unidad';
+        }
+
+        return $units;
     }
 
     public function dietMealItems(): HasMany

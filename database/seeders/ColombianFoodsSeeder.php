@@ -97,11 +97,22 @@ class ColombianFoodsSeeder extends Seeder
             ['name' => 'Agua de panca', 'category' => 'bebidas', 'kcal' => 45, 'protein_g' => 0, 'fat_g' => 0, 'carbs_g' => 11, 'fiber_g' => 0, 'portion_g' => 240],
         ];
 
+        // Gramos por pieza para alimentos que suelen contarse por unidad.
+        $gramsPerUnit = [
+            'huevo-entero' => 50, 'clara-de-huevo' => 33,
+            'arepa-de-maiz-blanco' => 100, 'pan-tajado-blanco' => 30, 'pan-integral' => 30,
+            'galletas-de-agua' => 6, 'banano' => 120, 'manzana' => 180, 'naranja' => 180,
+            'mango' => 200, 'aguacate' => 200, 'patacon' => 40, 'empanada-de-carne' => 100,
+            'buñuelo' => 40, 'bunuelo' => 40, 'deditos-de-queso' => 25, 'croquetas-de-pollo' => 30,
+        ];
+
         foreach ($foods as $food) {
-            Food::updateOrCreate(
-                ['slug' => Str::slug($food['name'])],
-                $food
-            );
+            $slug = Str::slug($food['name']);
+            if (isset($gramsPerUnit[$slug])) {
+                $food['grams_per_unit'] = $gramsPerUnit[$slug];
+            }
+
+            Food::updateOrCreate(['slug' => $slug], $food);
         }
     }
 }

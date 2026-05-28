@@ -104,7 +104,7 @@ function topExercises(log: LogWithDetails): string[] {
           <div class="font-display font-bold" style="font-size:28px;letter-spacing:-0.02em;color:#1DF412;">
             {{ logs.total }}
           </div>
-          <div style="font-size:10px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-top:2px;">
+          <div style="font-size:10px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-top:2px;">
             Sesiones completadas
           </div>
         </div>
@@ -112,7 +112,7 @@ function topExercises(log: LogWithDetails): string[] {
           <div class="font-display font-bold" style="font-size:28px;letter-spacing:-0.02em;color:#1DF412;">
             {{ totalVolumeAll > 0 ? (totalVolumeAll / 1000).toFixed(1) + 't' : '—' }}
           </div>
-          <div style="font-size:10px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-top:2px;">
+          <div style="font-size:10px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-top:2px;">
             Volumen total
           </div>
         </div>
@@ -158,7 +158,7 @@ function topExercises(log: LogWithDetails): string[] {
                 style="font-size:11px;color:#6B7280;font-weight:600;">
                 {{ formatDuration(log.duration_minutes) }}
               </span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </div>
           </div>
 
@@ -166,17 +166,17 @@ function topExercises(log: LogWithDetails): string[] {
           <div style="display:flex;gap:16px;margin-bottom:10px;">
             <div style="text-align:center;">
               <div class="font-display font-bold" style="font-size:18px;color:#fff;">{{ logExerciseCount(log) }}</div>
-              <div style="font-size:9px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">ejercicios</div>
+              <div style="font-size:9px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">ejercicios</div>
             </div>
             <div style="text-align:center;">
               <div class="font-display font-bold" style="font-size:18px;color:#fff;">{{ log.sets.length }}</div>
-              <div style="font-size:9px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">series</div>
+              <div style="font-size:9px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">series</div>
             </div>
             <div style="text-align:center;">
               <div class="font-display font-bold" style="font-size:18px;color:#1DF412;">
                 {{ logVolume(log) > 0 ? Math.round(logVolume(log)) + ' kg' : '—' }}
               </div>
-              <div style="font-size:9px;color:#4B5563;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">volumen</div>
+              <div style="font-size:9px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">volumen</div>
             </div>
           </div>
 
@@ -187,7 +187,7 @@ function topExercises(log: LogWithDetails): string[] {
               {{ name }}
             </span>
             <span v-if="logExerciseCount(log) > 3"
-              style="font-size:11px;color:#374151;padding:3px 4px;">
+              style="font-size:11px;color:#6B7280;padding:3px 4px;">
               +{{ logExerciseCount(log) - 3 }} más
             </span>
           </div>

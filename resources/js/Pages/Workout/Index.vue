@@ -88,7 +88,7 @@ function toggleMenu(id: number): void {
         </button>
         <button disabled
           class="flex items-center justify-center gap-2 font-semibold"
-          style="background:#111;border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:14px;color:#4B5563;font-size:14px;cursor:not-allowed;"
+          style="background:#111;border:1px solid rgba(255,255,255,0.05);border-radius:12px;padding:14px;color:#6B7280;font-size:14px;cursor:not-allowed;"
           title="Próximamente">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           Explorar

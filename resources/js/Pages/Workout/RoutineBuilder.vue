@@ -176,7 +176,7 @@ function cancel(): void {
         class="w-full flex items-center justify-center gap-2 font-bold"
         :style="canSave
           ? 'background:#1DF412;color:#000;box-shadow:0 4px 20px rgba(29,244,18,0.25);'
-          : 'background:#1A1A1A;color:#4B5563;cursor:not-allowed;'"
+          : 'background:#1A1A1A;color:#6B7280;cursor:not-allowed;'"
         style="border:none;border-radius:14px;padding:16px;font-size:15px;cursor:pointer;">
         {{ saving ? 'Guardando…' : (isEditing ? 'Guardar cambios' : 'Crear rutina') }}
       </button>

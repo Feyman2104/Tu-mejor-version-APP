@@ -69,7 +69,7 @@ function submit() {
           <div>
             <div style="font-size:11px;color:#9CA3AF;margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Email</div>
             <div class="flex items-center" style="background:#0D0D0D;border:1.5px solid rgba(255,255,255,0.04);border-radius:14px;padding:4px;">
-              <div style="padding-left:14px;color:#4B5563;display:flex;">
+              <div style="padding-left:14px;color:#6B7280;display:flex;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
               </div>
               <input
@@ -77,7 +77,7 @@ function submit() {
                 type="email"
                 readonly
                 class="flex-1 bg-transparent border-none outline-none"
-                style="padding:14px 16px;color:#4B5563;font-size:15px;font-weight:500;letter-spacing:-0.01em;min-width:0;"
+                style="padding:14px 16px;color:#6B7280;font-size:15px;font-weight:500;letter-spacing:-0.01em;min-width:0;"
               />
             </div>
           </div>
@@ -207,7 +207,7 @@ function submit() {
               <div>
                 <div style="font-size:11px;color:#9CA3AF;margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Email</div>
                 <div class="flex items-center" style="background:#0D0D0D;border:1.5px solid rgba(255,255,255,0.04);border-radius:14px;padding:4px;">
-                  <div style="padding-left:14px;color:#4B5563;display:flex;">
+                  <div style="padding-left:14px;color:#6B7280;display:flex;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                   </div>
                   <input
@@ -215,7 +215,7 @@ function submit() {
                     type="email"
                     readonly
                     class="flex-1 bg-transparent border-none outline-none"
-                    style="padding:14px 16px;color:#4B5563;font-size:15px;font-weight:500;letter-spacing:-0.01em;min-width:0;"
+                    style="padding:14px 16px;color:#6B7280;font-size:15px;font-weight:500;letter-spacing:-0.01em;min-width:0;"
                   />
                 </div>
               </div>

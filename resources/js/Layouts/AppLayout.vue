@@ -23,16 +23,16 @@ const navItems = [
     icon: `<path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/>`,
   },
   {
-    name: 'Progreso',
-    routeName: 'progress.index',
-    urlPrefix: '/progress',
-    icon: `<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>`,
-  },
-  {
     name: 'Nutrición',
     routeName: 'nutrition.index',
     urlPrefix: '/nutrition',
     icon: `<path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/>`,
+  },
+  {
+    name: 'Progreso',
+    routeName: 'progress.index',
+    urlPrefix: '/progress',
+    icon: `<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>`,
   },
 ]
 
@@ -73,20 +73,16 @@ const hideFab = computed(() => {
       </div>
 
       <!-- Menú de navegación principal -->
-      <nav class="flex-1 p-4 space-y-1">
+      <nav class="flex-1 p-4 space-y-1" aria-label="Navegación principal">
         <Link
           v-for="item in navItems"
           :key="item.routeName"
           :href="route(item.routeName)"
-          class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-150"
+          class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DF412] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0D0D0D]"
           :class="isActive(item.urlPrefix)
-            ? 'text-black font-bold'
-            : 'hover:text-white'"
-          :style="isActive(item.urlPrefix)
-            ? 'background:#1DF412;color:#000;'
-            : 'color:#9CA3AF;'"
-          onmouseover="if(!this.style.background.includes('1DF412'))this.style.color='#fff'"
-          onmouseout="if(!this.style.background.includes('1DF412'))this.style.color='#9CA3AF'"
+            ? 'bg-[#1DF412] text-black font-bold'
+            : 'text-[#9CA3AF] hover:text-white hover:bg-[#1C1C1C]'"
+          :aria-current="isActive(item.urlPrefix) ? 'page' : undefined"
         >
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -108,10 +104,7 @@ const hideFab = computed(() => {
             <div class="text-xs" style="color:#9CA3AF">{{ roleLabel }}</div>
           </div>
           <Link :href="route('logout')" method="post" as="button"
-                class="text-xs px-3 py-1.5 rounded-lg transition-colors flex-shrink-0"
-                style="color:#9CA3AF;border:1px solid rgba(255,255,255,0.06);"
-                onmouseover="this.style.color='#fff';this.style.borderColor='rgba(255,255,255,0.2)'"
-                onmouseout="this.style.color='#9CA3AF';this.style.borderColor='rgba(255,255,255,0.06)'">
+                class="text-xs px-3 py-1.5 rounded-lg transition-colors flex-shrink-0 text-[#9CA3AF] border border-white/[0.06] hover:text-white hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1DF412]">
             Salir
           </Link>
         </div>
@@ -123,6 +116,7 @@ const hideFab = computed(() => {
 
       <!-- Notificaciones flash de éxito -->
       <div v-if="$page.props.flash?.success"
+           role="alert" aria-live="polite"
            class="fixed top-4 right-4 z-50 px-4 py-3 rounded-xl text-black text-sm font-bold"
            style="background:#1DF412;box-shadow:0 0 20px rgba(29,244,18,0.4);max-width:320px;">
         {{ $page.props.flash.success }}
@@ -130,6 +124,7 @@ const hideFab = computed(() => {
 
       <!-- Notificaciones flash de error -->
       <div v-if="$page.props.flash?.error"
+           role="alert" aria-live="assertive"
            class="fixed top-4 right-4 z-50 px-4 py-3 rounded-xl text-white text-sm font-bold"
            style="background:#EF4444;max-width:320px;">
         {{ $page.props.flash.error }}

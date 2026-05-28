@@ -7,6 +7,7 @@ use App\Models\ExerciseContraindication;
 use App\Models\Routine;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class RoutineGeneratorService
@@ -121,8 +122,6 @@ class RoutineGeneratorService
 
     public function generate(?string $notes = null): ?Routine
     {
-        $this->user->routines()->update(['is_active' => false]);
-
         $isAdaptationPhase = $this->shouldUseAdaptationPhase();
 
         $phase = $isAdaptationPhase ? 'adaptation' : 'main';
@@ -130,38 +129,45 @@ class RoutineGeneratorService
 
         $splitConfig = $this->resolveSplit();
 
-        $routine = $this->user->routines()->create([
-            'name'            => $this->generateRoutineName($phase),
-            'description'     => $this->generateRoutineDescription($phase, $phaseWeeks),
-            'goal'            => $this->mapGoal(),
-            'generated_by_ai' => true,
-            'days_per_week'   => $this->daysPerWeek,
-            'is_active'       => true,
-            'phase'           => $phase,
-            'phase_weeks'     => $phaseWeeks,
-        ]);
-
+        // Construir los días antes de tocar la BD: si algo falla aquí, no se persiste nada.
         $days = $this->buildDays($splitConfig, $phase);
 
-        foreach ($days as $dayIndex => $dayData) {
-            $day = $routine->days()->create([
-                'day_number' => $dayIndex + 1,
-                'name'       => $dayData['name'],
-                'focus'      => $dayData['focus'],
+        $routine = DB::transaction(function () use ($phase, $phaseWeeks, $days) {
+            $this->user->routines()->update(['is_active' => false]);
+
+            $routine = $this->user->routines()->create([
+                'name'            => $this->generateRoutineName($phase),
+                'description'     => $this->generateRoutineDescription($phase, $phaseWeeks),
+                'goal'            => $this->mapGoal(),
+                'generated_by_ai' => true,
+                'days_per_week'   => $this->daysPerWeek,
+                'is_active'       => true,
+                'phase'           => $phase,
+                'phase_weeks'     => $phaseWeeks,
             ]);
 
-            foreach ($dayData['exercises'] as $order => $exData) {
-                $day->exercises()->create([
-                    'exercise_id'  => $exData['id'],
-                    'sets'         => $exData['sets'],
-                    'reps'         => $exData['reps'],
-                    'rest_seconds' => $exData['rest'],
-                    'rir'          => $exData['rir'],
-                    'notes'        => $exData['notes'],
-                    'order'        => $order + 1,
+            foreach ($days as $dayIndex => $dayData) {
+                $day = $routine->days()->create([
+                    'day_number' => $dayIndex + 1,
+                    'name'       => $dayData['name'],
+                    'focus'      => $dayData['focus'],
                 ]);
+
+                foreach ($dayData['exercises'] as $order => $exData) {
+                    $day->exercises()->create([
+                        'exercise_id'  => $exData['id'],
+                        'sets'         => $exData['sets'],
+                        'reps'         => $exData['reps'],
+                        'rest_seconds' => $exData['rest'],
+                        'rir'          => $exData['rir'],
+                        'notes'        => $exData['notes'],
+                        'order'        => $order + 1,
+                    ]);
+                }
             }
-        }
+
+            return $routine;
+        });
 
         Log::info("Routine generated for user {$this->user->id}", [
             'routine_id' => $routine->id,
@@ -382,7 +388,7 @@ class RoutineGeneratorService
 
             usort($chosen, fn ($a, $b) => $this->compoundFirst($a, $b));
 
-            $exercises = array_map(function ($ex, $order) use ($reps, $rest, $rir, $phase, $focus, $patterns) {
+            $exercises = array_map(function ($ex, $order) use ($reps, $rest, $rir, $phase, $focus, $patterns, $volume) {
                 $sets = match (true) {
                     $phase === 'adaptation' => 2,
                     $this->isSmallMuscle($ex['muscle_group'] ?? '') => 3,

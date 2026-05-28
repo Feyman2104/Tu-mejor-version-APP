@@ -210,15 +210,6 @@ class ExerciseExpansionSeeder extends Seeder
                     ['zone' => 'muneca', 'phase' => 'aguda', 'recommendation' => 'Reducir carga y rango; trabajar sin dolor.'],
                 ],
             ],
-                'common_errors' => [
-                    'Usar demasiado peso: los extensores son débiles, empieza ligero.',
-                    'Mover el antebrazo: aíslalo apoyándolo bien.',
-                ],
-                'met_value' => 3.00, 'knowledge_key' => null,
-                'contraindications' => [
-                    ['zone' => 'muneca', 'phase' => 'aguda', 'recommendation' => 'Reducir carga y rango; trabajar sin dolor.'],
-                ],
-            ],
             [
                 'name' => 'Curl tipo martillo', 'slug' => 'curl-martillo',
                 'muscle_group' => 'antebrazos', 'movement_pattern' => 'pull',
