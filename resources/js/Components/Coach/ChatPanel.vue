@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import { useWorkoutSession } from '@/Composables/useWorkoutSession'
 import type { User } from '@/types'
@@ -20,6 +20,26 @@ const loading = ref(false)
 const messagesEnd = ref<HTMLElement | null>(null)
 
 const firstName = user?.name?.split(' ')[0] ?? 'campeón'
+
+// Memoria por sesión: la conversación visible se mantiene mientras dure la
+// sesión del navegador (sobrevive a cerrar/reabrir el modal y a recargar la
+// página) y se limpia al cerrar el navegador o cerrar sesión. El backend sigue
+// guardando todo en BD, así que el coach recuerda lo hablado aunque se limpie.
+const STORAGE_KEY = `coach-chat:${user?.id ?? 'guest'}`
+
+onMounted(() => {
+  try {
+    const saved = sessionStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      history.value = JSON.parse(saved)
+      scrollToBottom()
+    }
+  } catch {}
+})
+
+watch(history, (val) => {
+  try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(val)) } catch {}
+}, { deep: true })
 
 // Sugerencias rápidas adaptadas según si hay sesión activa
 const QUICK = computed(() =>
@@ -84,14 +104,26 @@ async function send() {
     const decoder = new TextDecoder()
     if (!reader) throw new Error('No reader')
 
-    while (true) {
+    let buffer = ''
+    let streaming = true
+    while (streaming) {
       const { done, value } = await reader.read()
       if (done) break
-      const chunk = decoder.decode(value)
-      for (const line of chunk.split('\n').filter(l => l.startsWith('data: '))) {
-        const data = line.slice(6)
-        if (data === '[DONE]') break
-        try { assistantMsg.content += (JSON.parse(data).text ?? ''); scrollToBottom() } catch {}
+      buffer += decoder.decode(value, { stream: true })
+
+      // SSE events are separated by a blank line. Process only complete
+      // events and keep any trailing partial event in the buffer.
+      let sep
+      while ((sep = buffer.indexOf('\n\n')) !== -1) {
+        const event = buffer.slice(0, sep)
+        buffer = buffer.slice(sep + 2)
+        for (const line of event.split('\n')) {
+          if (!line.startsWith('data: ')) continue
+          const data = line.slice(6)
+          if (data === '[DONE]') { streaming = false; break }
+          try { assistantMsg.content += (JSON.parse(data).text ?? ''); scrollToBottom() } catch {}
+        }
+        if (!streaming) break
       }
     }
   } catch {

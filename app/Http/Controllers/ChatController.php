@@ -33,21 +33,23 @@ class ChatController extends Controller
         $user           = $request->user();
         $workoutContext = $validated['workout_context'] ?? null;
 
-        // Persist user message
-        $user->chatMessages()->create([
-            'role'    => 'user',
-            'content' => $validated['message'],
-        ]);
-
-        // Build conversation history (last 20 messages)
+        // Build conversation history BEFORE persisting the new user message
+        // to avoid including it twice in the context sent to the AI
         $history = $user->chatMessages()
             ->orderByDesc('created_at')
-            ->limit(20)
+            ->limit(19)  // 19 historial + 1 nuevo = 20 total
             ->get()
             ->reverse()
             ->values()
             ->map(fn ($m) => ['role' => $m->role, 'content' => $m->content])
             ->toArray();
+
+        // Append the new user message to history and persist it
+        $history[] = ['role' => 'user', 'content' => $validated['message']];
+        $user->chatMessages()->create([
+            'role'    => 'user',
+            'content' => $validated['message'],
+        ]);
 
         // Stream SSE response
         return response()->stream(function () use ($user, $history, $ai, $workoutContext) {

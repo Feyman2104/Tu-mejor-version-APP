@@ -55,7 +55,7 @@ Route::middleware(['auth'])->group(function () {
 });
 
 // App principal (auth + onboarding completo)
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'onboarded'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Ejercicios — rutas estáticas ANTES de la ruta con parámetro :slug

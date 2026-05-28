@@ -175,8 +175,14 @@ function destroyItem(item: DietMealItem): void {
 }
 
 // ─── Helpers UI ──────────────────────────────────────────────────────────────
+const regenerating = ref(false)
+
 function regenerate(): void {
-  router.post(route('nutrition.regenerate'))
+  if (regenerating.value) return
+  regenerating.value = true
+  router.post(route('nutrition.regenerate'), {}, {
+    onFinish: () => { regenerating.value = false },
+  })
 }
 
 function fmt(n: number): string {
@@ -200,11 +206,21 @@ function mealKcal(meal: DietMeal): number {
           </h1>
           <p style="font-size:13px;color:#9CA3AF;margin-top:2px;">Tu plan calórico personalizado</p>
         </div>
-        <button @click="regenerate"
-          class="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl"
-          style="background:#161616;color:#9CA3AF;border:1px solid rgba(255,255,255,0.08);">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          Recalcular
+        <button @click="regenerate" :disabled="regenerating"
+          class="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl transition-opacity"
+          :style="{
+            background: '#161616',
+            color: regenerating ? '#6B7280' : '#9CA3AF',
+            border: '1px solid rgba(255,255,255,0.08)',
+            opacity: regenerating ? '0.7' : '1',
+            cursor: regenerating ? 'not-allowed' : 'pointer',
+          }">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            :style="regenerating ? 'animation:spin 1s linear infinite' : ''">
+            <polyline points="23 4 23 10 17 10"/>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+          {{ regenerating ? 'Calculando…' : 'Recalcular' }}
         </button>
       </div>
 

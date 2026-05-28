@@ -17,8 +17,14 @@ function isDuplicate(message: string): boolean {
   return toasts.value.some(t => t.message === message)
 }
 
+const MAX_TOASTS = 5
+
 function add(message: string, type: ToastType, duration = 4000): void {
   if (isDuplicate(message)) return
+  // Si ya hay MAX_TOASTS, descarta el más antiguo
+  if (toasts.value.length >= MAX_TOASTS) {
+    toasts.value.splice(0, 1)
+  }
   const id = nextId++
   toasts.value.push({ id, message, type, duration })
   setTimeout(() => remove(id), duration)

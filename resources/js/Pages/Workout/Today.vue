@@ -761,7 +761,11 @@ async function toggleSet(re: RoutineExercise, idx: number) {
       const data  = await res.json()
       set.savedId = data.set?.id ?? null
     }
-  } catch { /* mantener UI optimista */ } finally {
+  } catch {
+    // Rollback optimista: desmarcar la serie
+    set.completed = false
+    toast.error('No se pudo guardar la serie. Verifica tu conexión.')
+  } finally {
     set.saving = false
   }
 }

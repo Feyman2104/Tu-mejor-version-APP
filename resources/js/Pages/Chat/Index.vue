@@ -63,21 +63,31 @@ async function send() {
 
     if (!reader) throw new Error('No reader')
 
-    while (true) {
+    let buffer = ''
+    let streaming = true
+    while (streaming) {
       const { done, value } = await reader.read()
       if (done) break
 
-      const chunk = decoder.decode(value)
-      const lines = chunk.split('\n').filter(l => l.startsWith('data: '))
+      buffer += decoder.decode(value, { stream: true })
 
-      for (const line of lines) {
-        const data = line.slice(6)
-        if (data === '[DONE]') break
-        try {
-          const parsed = JSON.parse(data)
-          assistantMsg.content += parsed.text ?? ''
-          scrollToBottom()
-        } catch {}
+      // SSE events are separated by a blank line. Process only complete
+      // events and keep any trailing partial event in the buffer.
+      let sep
+      while ((sep = buffer.indexOf('\n\n')) !== -1) {
+        const event = buffer.slice(0, sep)
+        buffer = buffer.slice(sep + 2)
+        for (const line of event.split('\n')) {
+          if (!line.startsWith('data: ')) continue
+          const data = line.slice(6)
+          if (data === '[DONE]') { streaming = false; break }
+          try {
+            const parsed = JSON.parse(data)
+            assistantMsg.content += parsed.text ?? ''
+            scrollToBottom()
+          } catch {}
+        }
+        if (!streaming) break
       }
     }
   } catch (err) {

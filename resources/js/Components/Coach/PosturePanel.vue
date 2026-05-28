@@ -51,6 +51,11 @@ const uploadVideoRef   = ref<HTMLVideoElement | null>(null)
 function onVideoFileChange(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
+  if (!file.type.startsWith('video/')) {
+    alert('Por favor selecciona un archivo de video (MP4, MOV, WebM, etc.)')
+    ;(e.target as HTMLInputElement).value = ''
+    return
+  }
   uploadFileName.value = file.name
   const url = URL.createObjectURL(file)
   analyzeVideoFile(url)
