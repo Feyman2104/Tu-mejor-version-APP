@@ -40,6 +40,8 @@ class OnboardingController extends Controller
             'split_type'               => ['nullable', 'in:auto,full_body,upper_lower,ppl,weider'],
             'has_trained_before'       => ['nullable', 'boolean'],
             'last_trained'             => ['nullable', 'in:never,currently,lt_1m,1_3m,3_6m,gt_6m'],
+            'training_days'            => ['required', 'array', 'min:1'],
+            'training_days.*'          => ['integer', 'between:1,7'],
         ]);
 
         $user = $request->user();
@@ -56,7 +58,8 @@ class OnboardingController extends Controller
             'place'                    => $validated['place'],
             'equipment'                => $validated['equipment'],
             'injuries'                 => $validated['injuries'] ?? [],
-            'days_per_week'            => $validated['days_per_week'],
+            'days_per_week'            => count($validated['training_days']),
+            'training_days'            => $validated['training_days'],
             'session_duration_minutes' => $validated['session_duration_minutes'],
             'preferred_muscles'        => $validated['preferred_muscles'] ?? [],
             'split_type'               => $validated['split_type'] ?? 'auto',
