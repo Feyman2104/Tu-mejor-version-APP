@@ -52,10 +52,10 @@ class RoutineGeneratorService
         ];
 
         $rawDays = $this->user->training_days ?? [];
-        $this->trainingDays = array_values(array_filter(
+        $this->trainingDays = array_values(array_unique(array_filter(
             array_map('intval', $rawDays),
             fn ($d) => $d >= 1 && $d <= 7
-        ));
+        )));
 
         $this->buildExercisePool();
     }
@@ -154,8 +154,18 @@ class RoutineGeneratorService
             ]);
 
             foreach ($days as $dayIndex => $dayData) {
+                // Determine day_number: use user's chosen training day or fallback to sequential
+                $dayNumber = $this->trainingDays[$dayIndex] ?? ($dayIndex + 1);
+                if (!isset($this->trainingDays[$dayIndex]) && !empty($this->trainingDays)) {
+                    Log::warning('RoutineGeneratorService: more days generated than training_days configured', [
+                        'user_id'             => $this->user->id,
+                        'training_days_count' => count($this->trainingDays),
+                        'day_index'           => $dayIndex,
+                    ]);
+                }
+
                 $day = $routine->days()->create([
-                    'day_number' => $this->trainingDays[$dayIndex] ?? ($dayIndex + 1),
+                    'day_number' => $dayNumber,
                     'name'       => $dayData['name'],
                     'focus'      => $dayData['focus'],
                 ]);
