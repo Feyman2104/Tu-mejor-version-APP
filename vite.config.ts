@@ -32,7 +32,7 @@ export default defineConfig({
       includeAssets: ['favicon.ico', 'icons/*.png', 'icon-mobile.svg'],
       manifest: {
         name: 'Tu Mejor Versión',
-        short_name: 'TuMejorVer',
+        short_name: 'Tu Mejor Versión',
         description: 'Plataforma de entrenamiento físico personalizado con IA para universitarios',
         theme_color: '#000000',
         background_color: '#000000',
