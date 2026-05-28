@@ -23,7 +23,10 @@
 | `vercel-react-best-practices` | **Descartada** (es React; el proyecto es Vue). Usar convenciones Vue/TS del `CLAUDE.md` |
 | Tipografías | **Anton (display) + Inter (cuerpo)** reemplazan Barlow Condensed + Inter |
 | Contenido landing nuevo | **Grid de features destacadas** ampliado |
-| Orden de ejecución | **A → B → C → E → D** |
+| Datos de ejercicios | Completar **descripciones e imágenes faltantes** de todos los ejercicios |
+| Auth al entrar a landing | **Cerrar sesión activa** al visitar `/` (fuerza login en cada visita) |
+| "Continuar entrenamiento" | Retomar **última sesión incompleta de cualquier día** (no solo hoy) |
+| Orden de ejecución | **A → G → B → C → F → E → D** |
 
 ---
 
@@ -68,6 +71,38 @@
   - Limpiar `mobility` de: `form` (122-140), `watch`/localStorage (200-225), `MOBILITY_LABELS` (105), persistencia onMounted (200-208).
   - Revisar summary (no muestra movilidad, ok).
 - **Verificación:** TS sin referencias a `mobility`, draft localStorage no rompe.
+
+---
+
+## FASE G — Bug navegación / auth (nuevo)
+
+### G1 · Cerrar sesión al entrar a la landing (tarea nueva)
+- **Causa:** `/` (Landing, `web.php:22`) es público; los CTA van a `/login` y `/register` con middleware `guest`. Si hay sesión activa, `guest` rebota al dashboard → "se salta al dashboard".
+- **Decisión del usuario:** al visitar `/`, **cerrar la sesión activa** (logout + invalidar sesión + regenerar token) y renderizar Landing. Así "Comenzar" siempre exige login.
+- **Acción:** convertir la ruta `/` en controlador/closure que, si `Auth::check()`, haga `Auth::logout()`, `session()->invalidate()`, `session()->regenerateToken()` y luego `Inertia::render('Landing')`.
+- **Archivos:** `routes/web.php:22` (+ posible `LandingController`).
+- **⚠️ Tradeoff (confirmado por el usuario):** rompe "recordarme"; un usuario logueado que toque el logo→landing quedará deslogueado. Aceptado.
+- **Verificación:** logueado → visitar `/` → sesión cerrada → "Comenzar" lleva a login; no rebota al dashboard.
+
+### G2 · "Continuar entrenamiento" retoma última sesión incompleta (tarea nueva)
+- **Estado actual:** `WorkoutController@today` (`app/Http/Controllers/WorkoutController.php:78-83`) solo busca log incompleto **de hoy** (`whereDate('date', today())->where('completed', false)`).
+- **Decisión:** retomar la **última sesión incompleta de cualquier día**; si no hay, arrancar la rutina del día actual.
+- **Acción:** cambiar la query del `$todayLog` para `where('completed', false)->latest()->first()` (sin filtro de fecha), y ajustar el `routine_day_id`/contexto que recibe `Today.vue` para que cargue los ejercicios de esa sesión. Revisar `session()` (`:104`) por consistencia.
+- **Verificación:** dejar sesión a medias "ayer" → "Continuar" la retoma con sus sets; sin sesiones abiertas → rutina de hoy.
+
+---
+
+## FASE F — Completar datos de ejercicios (nuevo)
+
+### F1 · Descripciones e imágenes faltantes (tarea nueva)
+- **Contexto:** tabla `exercises` (~77, 94 según memoria). `CLAUDE.md` reporta 64/77 con imagen (8 de movilidad sin equivalente esperado; 5 sin match: burpee, jumping jack, bird dog, sentadilla pausa, remo pendlay) y posibles `description`/`instructions` vacíos.
+- **Acción:**
+  1. **Auditar** qué ejercicios tienen `description`/`instructions` vacíos o `gif_url`/`thumbnail` null (query o comando artisan).
+  2. **Imágenes:** reintentar match en `free-exercise-db`; para los 5 sin equivalente, asignar GIF alternativo o imagen estática. Comando existente: `php artisan exercises:import-gifs --force`.
+  3. **Descripciones:** completar `description` + `instructions` (pasos en español) faltantes, idealmente desde `exerciseKnowledge.ts` (base científica NSCA/ACSM) para consistencia con coach/postura. Considerar comando seeder/artisan idempotente.
+  4. **Fallback UI:** en `Exercises/Show.vue`, `ExerciseModal.vue` y buscador, manejar el estado "sin imagen/descripción" con placeholder elegante (no romper layout).
+- **Archivos:** `app/Console/Commands/*` (import-gifs + nuevo de descripciones), `Exercise` model, `resources/js/data/exerciseKnowledge.ts`, vistas de ejercicio.
+- **Verificación:** 100% de ejercicios con descripción; máxima cobertura de imagen posible; UI sin huecos en los 3 estados.
 
 ---
 
@@ -170,6 +205,10 @@
 - [ ] **A13** Menú móvil landing (ambos accesos visibles)
 - [ ] **A8** Quitar movilidad del paso 1 del onboarding
 
+### Fase G
+- [ ] **G1** Cerrar sesión al entrar a landing (no rebotar al dashboard)
+- [ ] **G2** "Continuar entrenamiento" retoma última sesión incompleta (cualquier día)
+
 ### Fase B
 - [ ] **B5** Login/Registro: logo derecha, links bajo inputs, logo→landing, fix `router`
 - [ ] **B6** Restaurar imágenes en onboarding (panel lateral)
@@ -180,6 +219,9 @@
 - [ ] **C11** Iconografía unificada (lucide)
 - [ ] **C14** Logos por vista
 - [ ] **C12** Responsive 100% (QA 390/1440)
+
+### Fase F
+- [ ] **F1** Completar descripciones e imágenes faltantes de ejercicios + fallback UI
 
 ### Fase E
 - [ ] **E3** Features destacadas + info relevante en landing
