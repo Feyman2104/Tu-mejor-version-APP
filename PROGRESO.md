@@ -258,3 +258,54 @@
   - P1 1.5.b / P2 2.4.b marcados completados (tester manual pasa).
   - NutritionService: sex tomado del perfil del usuario en lugar de hardcodear 'male'.
   - **PLAN COMPLETO FINALIZADO** — todas las prioridades 1-5 completadas.
+
+
+---
+
+## PRIORIDAD 6 — Correcciones y mejoras (2026-05-28)
+
+> Plan completo en `~/.claude/plans/hay-un-error-en-radiant-cascade.md`.
+
+### A — Arreglos rápidos
+- [x] **A1** Quitar botón rojo "Eliminar" de las series en `Today.vue`. Eliminados: div botón rojo,
+      swipe handlers (@touchstart/@touchend), estado `openSwipeKey`, `swipeStartX`, `swipeKey()`,
+      `onSetTouchStart()`, `onSetTouchEnd()`. `deleteSet()` conservado (lo usa el picker). 2026-05-28.
+- [x] **A2** Quitar ítem "Coach IA" del menú lateral (`AppLayout.vue` → `navItems`). FAB flotante
+      intacto. `navItems` queda: Dashboard, Entrenamiento, Nutrición, Progreso. 2026-05-28.
+
+### B — Nutrición: generación + buscador + unidades
+- [x] **B1** `ColombianFoodsSeeder` registrado en `DatabaseSeeder`. Regeneración automática de planes
+      vacíos en `NutritionController::index()` via `meals()->has('items')->exists()`. 84 alimentos en BD.
+- [x] **B2** Migraciones: `foods` + columnas `density`/`grams_per_unit`; `diet_meal_items` +
+      columnas `quantity`/`unit`. Ambas aplicadas. `Food::availableUnits()` determina g/kg/oz/ml/l/unidad.
+- [x] **B3** `NutritionService`: `toGrams()`, `macrosForGrams()`, `buildItemFromInput()`.
+      Conversión: g/kg/oz siempre; ml/l via density; unidad via grams_per_unit. `buildItem()` incluye
+      quantity+unit. ColombianFoodsSeeder: `grams_per_unit` para huevo, arepa, pan, banano, etc.
+- [x] **B4** Endpoints CRUD en `NutritionController`: `addItem` (POST meals/{meal}/items),
+      `updateItem` (PATCH meal-items/{item}), `destroyItem` (DELETE meal-items/{item}). Form Requests
+      `AddMealItemRequest` + `UpdateMealItemRequest`. Autorización via `dietPlan->user_id`.
+- [x] **B5** `Nutrition/Index.vue` reescrito: fix barra progreso (era 60% fijo → `progressPercent`),
+      modal buscador por comida (filtra foods client-side, muestra macros por 100g), selector cantidad+unidad,
+      preview macros en tiempo real, edición inline por ítem (cantidad/unidad), botón eliminar por ítem.
+      Tipos TS `NutritionFood`, `DietMeal`, `DietMealItem`, `DietPlan` en `@/types/index.ts`.
+
+### C — Progreso
+- [x] **C1** `BodyCompositionService`: CUN-BAE (Gómez-Ambrosi 2012, ±3.5%), Deurenberg fallback,
+      U.S. Navy (Hodgdon & Beckett 1984, ±3.5%). `ProgressController` pasa `autoBodyFat` calculado
+      con datos del perfil del usuario. `Progress/Index.vue`: estimación auto como sugerencia
+      (`~X%`), botón "Precisar con cinta" → modal calculadora Navy que rellena el campo.
+- [x] **C2** `ProgressController`: métricas de entrenamiento (streak, workoutsThisWeek/Month,
+      weeklyVolume, PRs top-5 por ejercicio via JOIN workout_sets→routine_exercises→exercises).
+      `Progress/Index.vue`: 4 tarjetas de entrenamiento (racha/semana/mes/volumen), tabla PRs.
+      Página tiene contenido aunque no haya registros de peso.
+
+### D — Cierre
+- [x] **D1** Migraciones aplicadas (`php artisan migrate`). Seeder ejecutado (84 alimentos).
+- [x] **D2** `npm run build` limpio (714 módulos, 0 errores). 2026-05-28.
+- [ ] **D3** `/debug` y `tester-usabilidad` (pendiente ejecución).
+
+## Bitácora PRIORIDAD 6
+- 2026-05-28 · A1+A2 completados (arreglos rápidos).
+- 2026-05-28 · B1-B5 completados (nutrición funcional con buscador, unidades y edición).
+- 2026-05-28 · C1-C2 completados (% grasa CUN-BAE + Navy, métricas entrenamiento en Progreso).
+- 2026-05-28 · Migraciones + seeder + build OK. Pendiente: tester-usabilidad.

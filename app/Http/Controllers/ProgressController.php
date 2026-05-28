@@ -46,9 +46,18 @@ class ProgressController extends Controller
             ->orderByDesc('date')
             ->get(['id', 'date']);
 
-        $streak           = $this->calculateStreak($logs);
-        $workoutsThisWeek = $logs->where('date', '>=', $weekStart->toDateString())->count();
-        $workoutsThisMonth = $logs->where('date', '>=', $monthStart->toDateString())->count();
+        $streak = $this->calculateStreak($logs);
+
+        // Contar en BD (evita comparar Carbon vs string en colección)
+        $workoutsThisWeek = $user->workoutLogs()
+            ->where('completed', true)
+            ->where('date', '>=', $weekStart)
+            ->count();
+
+        $workoutsThisMonth = $user->workoutLogs()
+            ->where('completed', true)
+            ->where('date', '>=', $monthStart)
+            ->count();
 
         $weeklyVolume = (float) $user->workoutLogs()
             ->where('completed', true)

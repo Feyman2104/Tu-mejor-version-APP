@@ -62,6 +62,7 @@ class NutritionController extends Controller
     /** POST /nutrition/meals/{meal}/items */
     public function addItem(AddMealItemRequest $request, DietMeal $meal): \Illuminate\Http\RedirectResponse
     {
+        $meal->load('dietPlan');
         abort_if($meal->dietPlan->user_id !== auth()->id(), 403);
 
         $food = Food::findOrFail($request->food_id);
@@ -75,11 +76,10 @@ class NutritionController extends Controller
     /** PATCH /nutrition/meal-items/{item} */
     public function updateItem(UpdateMealItemRequest $request, DietMealItem $item): \Illuminate\Http\RedirectResponse
     {
+        $item->load('dietMeal.dietPlan', 'food');
         abort_if($item->dietMeal->dietPlan->user_id !== auth()->id(), 403);
 
-        $food    = $item->food;
-        $updated = $this->nutritionService->buildItemFromInput($food, $request->quantity, $request->unit);
-
+        $updated = $this->nutritionService->buildItemFromInput($item->food, $request->quantity, $request->unit);
         $item->update($updated);
 
         return redirect()->route('nutrition.index');
@@ -88,6 +88,7 @@ class NutritionController extends Controller
     /** DELETE /nutrition/meal-items/{item} */
     public function destroyItem(DietMealItem $item): \Illuminate\Http\RedirectResponse
     {
+        $item->load('dietMeal.dietPlan');
         abort_if($item->dietMeal->dietPlan->user_id !== auth()->id(), 403);
 
         $item->delete();

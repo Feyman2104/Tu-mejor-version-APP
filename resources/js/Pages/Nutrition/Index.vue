@@ -304,7 +304,7 @@ function mealKcal(meal: DietMeal): number {
                     style="width:90px;background:#222;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:6px 10px;color:#fff;font-size:14px;text-align:center;" />
                   <select v-model="editUnit"
                     style="background:#222;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:6px 10px;color:#fff;font-size:14px;">
-                    <option v-for="u in availableUnits(item.food!)" :key="u" :value="u">{{ u }}</option>
+                    <option v-for="u in (item.food ? availableUnits(item.food) : ['g','kg','oz'])" :key="u" :value="u">{{ u }}</option>
                   </select>
                   <div v-if="editPreview" style="font-size:11px;color:#1DF412;font-weight:600;">
                     {{ editPreview.kcal }} kcal
