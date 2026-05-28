@@ -75,9 +75,9 @@ class WorkoutController extends Controller
         $todayDay  = $routine?->days->firstWhere('day_number', $todayIso);
         $isRestDay = $routine && ! $todayDay;
 
+        // Buscar sesión incompleta activa (sin filtro de fecha para reanudar sesiones de días anteriores)
         $todayLog = $user->workoutLogs()
             ->with('sets')
-            ->whereDate('date', today())
             ->where('completed', false)
             ->latest()
             ->first();

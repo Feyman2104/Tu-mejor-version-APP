@@ -45,6 +45,10 @@
     overflow-x: hidden;
   }
 
+  h1, h2, h3, h4 {
+    font-family: 'Barlow Condensed', 'Barlow', system-ui, sans-serif;
+  }
+
   * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent; }
   *::-webkit-scrollbar { width: 4px; height: 4px; }
   *::-webkit-scrollbar-track { background: transparent; }

@@ -1,15 +1,24 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3'
+import { computed } from 'vue'
+import { Link, usePage } from '@inertiajs/vue3'
 import GuestLayout from '@/Layouts/GuestLayout.vue'
 import LogoSVG from '@/Components/LogoSVG.vue'
 
 defineOptions({ layout: GuestLayout })
+
+const page = usePage()
+const isAuth = computed(() => !!(page.props.auth as any)?.user)
+const startHref = computed(() => isAuth.value ? '/dashboard' : '/register')
 
 const features = [
   { title: 'Rutinas IA', desc: 'Planes adaptativos según tu nivel, objetivos y equipo disponible. Cambian cada semana.', icon: 'dumbbell' },
   { title: 'Análisis de postura', desc: 'Corrección en tiempo real con tu cámara. Reduce el riesgo de lesiones.', icon: 'camera' },
   { title: 'Progreso medible', desc: 'Gráficas claras de fuerza, volumen, consistencia y cumplimiento.', icon: 'chart' },
   { title: 'Coach virtual 24/7', desc: 'Respuestas instantáneas a cualquier duda. Disponible siempre.', icon: 'message' },
+  { title: 'Nutrición personalizada', desc: 'Plan alimentario adaptado a tus macros, objetivo y preferencias culturales.', icon: 'nutrition' },
+  { title: 'Racha y logros', desc: 'Sistema de rachas, insignias y hitos que mantienen tu motivación alta cada semana.', icon: 'trophy' },
+  { title: 'Ciencia detrás', desc: 'Periodización basada en evidencia: sobrecarga progresiva, RIR y deload automático.', icon: 'science' },
+  { title: 'Sin equipo necesario', desc: 'Entrena en casa, el gimnasio o cualquier lugar. El plan se adapta a lo que tienes.', icon: 'home' },
 ]
 
 const stats = [
@@ -45,7 +54,7 @@ const progressMetrics = [
         </Link>
         <div class="flex items-center gap-2 md:gap-3">
           <Link :href="route('login')"
-            class="font-semibold transition-colors hidden sm:inline-flex"
+            class="font-semibold transition-colors inline-flex"
             style="color:#fff;border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:10px 20px;font-size:14px;text-decoration:none;">
             Iniciar sesión
           </Link>
@@ -86,10 +95,10 @@ const progressMetrics = [
             Rutinas personalizadas con IA, análisis de postura en tiempo real y seguimiento de progreso. Hecho para estudiantes universitarios.
           </p>
           <div class="flex flex-wrap gap-3 mb-10">
-            <Link :href="route('register')"
+            <Link :href="startHref"
               class="inline-flex items-center gap-2 font-bold"
               style="background:transparent;color:#1DF412;border:1.5px solid rgba(29,244,18,0.45);border-radius:12px;padding:18px 28px;font-size:16px;text-decoration:none;">
-              Comenzar gratis
+              {{ isAuth ? 'Ir al dashboard' : 'Comenzar gratis' }}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </Link>
           </div>
@@ -140,26 +149,6 @@ const progressMetrics = [
             </div>
           </div>
 
-          <!-- Badge flotante: SESIÓN HOY -->
-          <div class="absolute items-center gap-3 hidden md:flex" style="top:32px;right:32px;z-index:10;background:rgba(13,13,13,0.95);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:14px 18px;box-shadow:0 12px 32px rgba(0,0,0,0.5);">
-            <div class="flex items-center justify-center" style="width:40px;height:40px;border-radius:10px;background:rgba(29,244,18,0.08);color:#1DF412;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-            </div>
-            <div>
-              <div style="font-size:11px;color:#9CA3AF;margin-bottom:2px;">SESIÓN HOY</div>
-              <div style="font-size:16px;font-weight:700;">42 min · 387 kcal</div>
-            </div>
-          </div>
-          <!-- Badge flotante: RACHA ACTIVA -->
-          <div class="absolute items-center gap-3 hidden lg:flex" style="bottom:32px;right:32px;z-index:10;background:rgba(13,13,13,0.95);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:14px 18px;box-shadow:0 12px 32px rgba(0,0,0,0.5);">
-            <div class="flex items-center justify-center" style="width:40px;height:40px;border-radius:10px;background:rgba(29,244,18,0.08);color:#1DF412;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-            </div>
-            <div>
-              <div style="font-size:11px;color:#9CA3AF;margin-bottom:2px;">RACHA ACTIVA</div>
-              <div style="font-size:16px;font-weight:700;">14 días seguidos</div>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -194,6 +183,10 @@ const progressMetrics = [
               <svg v-if="f.icon === 'camera'" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
               <svg v-if="f.icon === 'chart'" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
               <svg v-if="f.icon === 'message'" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+              <svg v-if="f.icon === 'nutrition'" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+              <svg v-if="f.icon === 'trophy'" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 21 12 17 16 21"/><line x1="12" y1="17" x2="12" y2="10"/><path d="M6 3H5a2 2 0 0 0-2 2v3a6 6 0 0 0 6 6 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2h-1"/><path d="M6 3h12"/></svg>
+              <svg v-if="f.icon === 'science'" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v11l3 7H6l3-7V3z"/><line x1="9" y1="3" x2="15" y2="3"/></svg>
+              <svg v-if="f.icon === 'home'" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             </div>
             <h3 class="font-display font-bold" style="font-size:20px;letter-spacing:-0.01em;margin-bottom:8px;">{{ f.title }}</h3>
             <p style="font-size:14px;color:#9CA3AF;line-height:1.6;">{{ f.desc }}</p>

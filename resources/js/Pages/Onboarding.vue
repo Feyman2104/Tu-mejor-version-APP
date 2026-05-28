@@ -103,7 +103,6 @@ const MUSCLE_OPTS = [
   { id: 'core',      label: 'Core / Abdomen' },
 ]
 const EQUIPMENT_LABELS: Record<string, string> = Object.fromEntries(EQUIPMENT_OPTS.map(e => [e.id, e.label]))
-const MOBILITY_LABELS: Record<string, string> = { good: 'Buena', average: 'Regular', limited: 'Limitada' }
 const PLACE_LABELS: Record<string, string> = { gym: 'Gimnasio', home: 'En casa', both: 'Casa y gimnasio' }
 const LEVEL_LABELS: Record<string, string> = Object.fromEntries(LEVEL_OPTS.map(l => [l.id, l.label]))
 const MUSCLE_LABELS: Record<string, string> = Object.fromEntries(MUSCLE_OPTS.map(m => [m.id, m.label]))
@@ -150,7 +149,6 @@ const form = useForm({
   sex:                      '' as string,
   weight_kg:                null as number | null,
   height_cm:                null as number | null,
-  mobility:                 '' as string,
   activity_level:           '' as string,
   level:                    '' as string,
   goal:                     '' as string,
@@ -234,7 +232,7 @@ onMounted(() => {
     const draft = JSON.parse(raw) as Record<string, unknown>
     if (typeof draft.step === 'number') step.value = Math.min(Math.max(draft.step, 0), TOTAL_STEPS - 1)
     const fields: (keyof typeof form)[] = [
-      'name','age','sex','weight_kg','height_cm','mobility','level','goal','place',
+      'name','age','sex','weight_kg','height_cm','level','goal','place',
       'equipment','injuries','days_per_week','session_duration_minutes','preferred_muscles',
       'training_days',
     ]
@@ -249,7 +247,6 @@ watch(
   () => ({
     step: step.value,
     name: form.name, age: form.age, sex: form.sex, weight_kg: form.weight_kg, height_cm: form.height_cm,
-    mobility: form.mobility,
     activity_level: form.activity_level, level: form.level, goal: form.goal, place: form.place,
     equipment: form.equipment, injuries: form.injuries,
     days_per_week: form.days_per_week, session_duration_minutes: form.session_duration_minutes,
@@ -553,20 +550,6 @@ function toNum(e: Event): number | null {
                       @blur="($event.target as HTMLInputElement).style.borderColor='rgba(255,255,255,0.08)'"
                     />
                     <div style="font-size:12px;color:#6B7280;text-align:center;margin-top:3px;">cm</div>
-                  </div>
-                </div>
-
-                <!-- Movilidad -->
-                <div>
-                  <label style="font-size:13px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:8px;">Movilidad articular general</label>
-                  <div class="grid grid-cols-3 gap-2">
-                    <button v-for="opt in [{id:'good',label:'Buena',icon:'✅'},{id:'average',label:'Regular',icon:'⚠️'},{id:'limited',label:'Limitada',icon:'🔴'}]"
-                      :key="opt.id" @click="form.mobility = opt.id"
-                      style="border-radius:12px;padding:12px 8px;cursor:pointer;border:1.5px solid;transition:all 0.15s;text-align:center;"
-                      :style="form.mobility === opt.id ? 'background:rgba(29,244,18,0.08);border-color:#1DF412;' : 'background:#161616;border-color:rgba(255,255,255,0.08);'">
-                      <div style="font-size:18px;margin-bottom:4px;">{{ opt.icon }}</div>
-                      <div style="font-size:12px;font-weight:600;" :style="form.mobility === opt.id ? 'color:#1DF412;' : 'color:#9CA3AF;'">{{ opt.label }}</div>
-                    </button>
                   </div>
                 </div>
 

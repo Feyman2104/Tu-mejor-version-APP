@@ -1,7 +1,27 @@
 <script setup lang="ts">
 import { useToasts } from '@/Composables/useToasts'
+import { animate } from 'animejs'
 
 const { toasts, remove } = useToasts()
+
+function onEnter(el: Element) {
+  animate(el, {
+    translateX: [40, 0],
+    opacity: [0, 1],
+    duration: 320,
+    ease: 'cubicBezier(0.34, 1.56, 0.64, 1)',
+  })
+}
+
+function onLeave(el: Element, done: () => void) {
+  animate(el, {
+    translateX: [0, 40],
+    opacity: [1, 0],
+    duration: 220,
+    ease: 'easeInQuad',
+    onComplete: done,
+  })
+}
 
 function iconFor(type: string) {
   if (type === 'success') return '<polyline points="20 6 9 17 4 12"/>'
@@ -23,7 +43,7 @@ function colorFor(type: string): string {
   <Teleport to="body">
     <div
       style="position:fixed;top:20px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;max-width:320px;width:calc(100vw - 32px);">
-      <TransitionGroup name="toast">
+      <TransitionGroup name="toast" :css="false" @enter="onEnter" @leave="onLeave">
         <div
           v-for="t in toasts"
           :key="t.id"
