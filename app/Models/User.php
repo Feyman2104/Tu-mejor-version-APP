@@ -18,7 +18,7 @@ class User extends Authenticatable
         'equipment', 'injuries', 'avatar',
         'onboarding_completed_at',
         'age', 'sex', 'weight_kg', 'height_cm', 'mobility', 'activity_level',
-        'place', 'days_per_week', 'session_duration_minutes', 'preferred_muscles',
+        'place', 'days_per_week', 'training_days', 'session_duration_minutes', 'preferred_muscles',
         'split_type', 'has_trained_before', 'last_trained',
     ];
 
@@ -33,6 +33,7 @@ class User extends Authenticatable
             'equipment'               => 'array',
             'injuries'                => 'array',
             'preferred_muscles'       => 'array',
+            'training_days'           => 'array',
             'has_trained_before'      => 'boolean',
         ];
     }
