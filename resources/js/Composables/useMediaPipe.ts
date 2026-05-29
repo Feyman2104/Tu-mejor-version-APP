@@ -199,6 +199,11 @@ export function useMediaPipe() {
       isReady.value = true
       isRunning.value = true
 
+      // Silenciar el audio del video durante el análisis (solo procesamos imagen)
+      videoEl.muted = true
+      videoEl.volume = 0
+      videoEl.defaultMuted = true
+
       // Cargar y reproducir el video
       videoEl.src = fileUrl
       await new Promise<void>((resolve, reject) => {

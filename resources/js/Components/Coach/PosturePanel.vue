@@ -87,11 +87,12 @@ async function analyzeVideoFile(fileUrl: string) {
   uploadProcessing.value = false
   uploadProgress.value = 100
 
-  // Mostrar resumen si hubo actividad
+  // Mostrar resumen si hubo actividad (sin narración: el video se evalúa en silencio)
   const snap = getSummary()
   if (snap.totalFrames > 0) {
     summary.value = snap
-    speakFinal(snap.finalScore)
+  } else {
+    errorMessage.value = 'No se detectó a ninguna persona en el video. Asegúrate de que el cuerpo se vea completo y bien iluminado.'
   }
 }
 
@@ -171,14 +172,19 @@ function onResults(results: PoseResults) {
   if (countdown.value !== null) return
   processFrame(selectedExercise.value, results.poseLandmarks)
 
+  // La voz y las correcciones habladas son EXCLUSIVAS del modo cámara en vivo.
+  // El video subido se analiza en silencio y solo muestra el resumen al final.
+  if (analysisMode.value !== 'live') return
+
   // Voz: anunciar la corrección más importante del frame (error > warning, ignora 'good')
   const fb = currentFeedback.value
   const top = fb.find(f => f.severity === 'error') ?? fb.find(f => f.severity === 'warning')
   if (top) voice.speak(top.message)
 }
 
-// Conteo de repeticiones en voz alta — encola sin interrumpir correcciones activas
+// Conteo de repeticiones en voz alta — solo en modo cámara en vivo
 watch(repCount, (n, old) => {
+  if (analysisMode.value !== 'live') return
   if (n > old && n > 0) voice.speakRep(String(n))
 })
 
@@ -616,17 +622,9 @@ function scoreColor(val?: number): string {
             </div>
             <input type="file" accept="video/*" style="display:none;" @change="onVideoFileChange" :disabled="uploadProcessing" />
           </label>
-
-          <!-- Barra de progreso -->
-          <div v-if="uploadProcessing" style="margin-top:10px;">
-            <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
-              <span style="font-size:11px;color:#9CA3AF;font-weight:600;">Analizando video...</span>
-              <span style="font-size:11px;color:#1DF412;font-weight:700;">{{ uploadProgress }}%</span>
-            </div>
-            <div style="height:4px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden;">
-              <div :style="{ width: uploadProgress + '%', background: '#1DF412', height: '100%', borderRadius: '99px', transition: 'width 0.3s ease' }"></div>
-            </div>
-          </div>
+          <p style="font-size:11px;color:#6B7280;line-height:1.4;margin-top:8px;">
+            Graba <strong style="color:#9CA3AF;">{{ viewLabel }}</strong>, con todo el cuerpo en cuadro. El análisis y el resumen aparecen al terminar el video.
+          </p>
         </div>
 
         <!-- Selector de cámara (solo en modo live) -->
@@ -664,10 +662,10 @@ function scoreColor(val?: number): string {
           'border': started && isRunning ? `3px solid ${statusColor(frameStatus)}` : '1px solid rgba(255,255,255,0.06)',
           'box-shadow': started && isRunning ? `0 0 22px ${statusColor(frameStatus)}55` : 'none',
         }">
-        <video ref="videoRef" style="display:none;" playsinline></video>
+        <video ref="videoRef" style="display:none;" playsinline muted></video>
         <canvas ref="canvasRef"
-          style="width:100%;height:100%;object-fit:cover;"
-          :style="started && isRunning ? '' : 'display:none;'"
+          style="width:100%;height:100%;object-fit:contain;"
+          :style="(started && isRunning) || uploadProcessing ? '' : 'display:none;'"
         ></canvas>
 
         <!-- Placeholder: antes de iniciar -->
@@ -679,10 +677,43 @@ function scoreColor(val?: number): string {
           <p style="font-size:12px;color:#9CA3AF;line-height:1.4;">Colócate {{ viewLabel }} a 2–3 m para que capte todo tu cuerpo.</p>
         </div>
 
-        <!-- Spinner cargando -->
-        <div v-if="initializing" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;">
+        <!-- Spinner cargando (solo modo cámara en vivo) -->
+        <div v-if="initializing && !uploadProcessing" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;">
           <div style="width:40px;height:40px;border-radius:50%;border:3px solid rgba(29,244,18,0.2);border-top-color:#1DF412;animation:spin 0.9s linear infinite;"></div>
           <p style="font-size:12px;color:#9CA3AF;">Cargando detector de postura...</p>
+        </div>
+
+        <!-- ═══ PANTALLA "ANALIZANDO TU POSTURA" (modo subir video) ═══ -->
+        <div v-if="uploadProcessing"
+          style="position:absolute;inset:0;z-index:12;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:18px;background:linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.35) 55%, transparent 100%);">
+
+          <!-- Línea de escaneo animada -->
+          <div class="scanline" style="position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg, transparent, #1DF412, transparent);box-shadow:0 0 12px #1DF412;"></div>
+
+          <!-- Badge superior: detección activa -->
+          <div style="position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:7px;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);border:1px solid rgba(29,244,18,0.3);border-radius:999px;padding:6px 14px;">
+            <div style="width:7px;height:7px;border-radius:50%;background:#1DF412;animation:pulse 1.2s ease-in-out infinite;"></div>
+            <span style="font-size:10px;font-weight:700;color:#1DF412;letter-spacing:0.08em;text-transform:uppercase;">Detectando postura</span>
+          </div>
+
+          <!-- Bloque inferior: título + progreso -->
+          <div style="width:100%;max-width:340px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+              <div style="width:34px;height:34px;border-radius:50%;border:3px solid rgba(29,244,18,0.2);border-top-color:#1DF412;animation:spin 0.9s linear infinite;flex-shrink:0;"></div>
+              <div>
+                <div class="font-display" style="font-size:18px;font-weight:900;color:#fff;line-height:1.1;text-transform:uppercase;">Analizando tu postura</div>
+                <div style="font-size:11px;color:#9CA3AF;margin-top:1px;">{{ knowledge?.name_es }} · procesando en tu dispositivo</div>
+              </div>
+            </div>
+            <!-- Barra de progreso -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+              <span style="font-size:10px;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Progreso del video</span>
+              <span style="font-size:13px;color:#1DF412;font-weight:800;">{{ uploadProgress }}%</span>
+            </div>
+            <div style="height:6px;background:rgba(255,255,255,0.08);border-radius:99px;overflow:hidden;">
+              <div :style="{ width: uploadProgress + '%', background: 'linear-gradient(90deg,#15C40F,#1DF412)', height: '100%', borderRadius: '99px', transition: 'width 0.3s ease' }"></div>
+            </div>
+          </div>
         </div>
 
         <!-- Hint de vista recomendada (centrado arriba) -->
@@ -847,4 +878,18 @@ function scoreColor(val?: number): string {
 
 <style scoped>
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.7); }
+}
+@keyframes scanline {
+  0%   { top: 0%;   opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+.scanline {
+  top: 0;
+  animation: scanline 2.2s ease-in-out infinite;
+}
 </style>
