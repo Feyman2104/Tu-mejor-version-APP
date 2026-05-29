@@ -76,8 +76,57 @@ export function usePostureFeedback() {
   let maxSoFar = -Infinity
   let lastTopVal = 0
   let lastBotVal = 0
+  // baseline = valor de la señal en reposo (antes de empezar la técnica).
+  let baseline = 0
+  // active = la técnica YA se está ejecutando (el movimiento se alejó del reposo).
+  // Hasta entonces NO se puntúa ni se acumula historial: el "setup" no debe penalizar.
+  let active = false
   // Feedback de posición (bottom/top) fijado hasta el siguiente extremo.
   let phasicFeedback: FeedbackItem[] = []
+
+  // Lado "pegajoso": una vez elegido el lado más visible, solo cambia si el otro
+  // es claramente mejor. Evita el parpadeo izquierda/derecha que salta los ángulos.
+  let stickySide: 'left' | 'right' | null = null
+  const SIDE_SWITCH_MARGIN = 0.4
+
+  // Suavizado exponencial (EMA) de ángulos y de la señal de trayectoria.
+  // Reduce el ruido frame-a-frame de MediaPipe sin retrasar demasiado la respuesta.
+  const EMA_ALPHA = 0.4
+  const emaStore = new Map<string, number>()
+  function ema(key: string, raw: number): number {
+    const prev = emaStore.get(key)
+    const v = prev === undefined ? raw : EMA_ALPHA * raw + (1 - EMA_ALPHA) * prev
+    emaStore.set(key, v)
+    return v
+  }
+
+  // Racha de frames consecutivos en que un mismo fallo está presente.
+  // Un fallo solo penaliza/acumula tras DEBOUNCE frames → ignora parpadeos de 1-2 frames.
+  const DEBOUNCE_FRAMES = 3
+  const badStreak = new Map<string, number>()
+
+  /** Suma de visibilidad de hombro+cadera+rodilla de un lado. */
+  function sideVisibility(lm: Landmark[], side: 'left' | 'right'): number {
+    const L = POSE_LANDMARKS
+    const ids = side === 'left'
+      ? [L.LEFT_HIP, L.LEFT_KNEE, L.LEFT_SHOULDER]
+      : [L.RIGHT_HIP, L.RIGHT_KNEE, L.RIGHT_SHOULDER]
+    return ids.reduce((acc, i) => acc + (lm[i]?.visibility ?? 0), 0)
+  }
+
+  /** Elige el lado a analizar con histéresis para no parpadear entre frames. */
+  function chooseSide(lm: Landmark[]): 'left' | 'right' {
+    const l = sideVisibility(lm, 'left')
+    const r = sideVisibility(lm, 'right')
+    if (stickySide === null) {
+      stickySide = l >= r ? 'left' : 'right'
+    } else if (stickySide === 'left' && r > l + SIDE_SWITCH_MARGIN) {
+      stickySide = 'right'
+    } else if (stickySide === 'right' && l > r + SIDE_SWITCH_MARGIN) {
+      stickySide = 'left'
+    }
+    return stickySide
+  }
 
   // Acumula cuántos frames ocurrió cada error/warning durante la sesión.
   const feedbackHistory = new Map<string, { count: number; severity: 'warning' | 'error'; joint: string }>()
@@ -159,8 +208,9 @@ export function usePostureFeedback() {
     const items: FeedbackItem[] = []
     for (const t of thresholds) {
       if (t.condition !== matchCond) continue
-      const angle = getAngleForJoint(t.joint, lm, side)
-      if (angle === null) continue
+      const raw = getAngleForJoint(t.joint, lm, side)
+      if (raw === null) continue
+      const angle = ema('ex:' + t.joint, raw)
       items.push(evaluateThreshold(t, angle))
     }
     phasicFeedback = items
@@ -174,7 +224,7 @@ export function usePostureFeedback() {
     const knowledge = EXERCISE_KNOWLEDGE[exerciseId]
     if (!knowledge || !lm || lm.length < 33) return
 
-    const side = calc.bestSide(lm)
+    const side = chooseSide(lm)
 
     // Sin persona en cuadro → no generes feedback ni acumules frames (anti-falsos-positivos).
     if (!personVisible(lm, side)) {
@@ -184,19 +234,20 @@ export function usePostureFeedback() {
     }
     isPersonDetected.value = true
 
-    // 1) Reglas `throughout` (correcciones en tiempo real).
+    // 1) Reglas `throughout` (correcciones en tiempo real), con ángulos suavizados.
     const live: FeedbackItem[] = []
     for (const t of knowledge.posture_thresholds) {
       if (t.condition !== 'throughout') continue
-      const angle = getAngleForJoint(t.joint, lm, side)
-      if (angle === null) continue
+      const raw = getAngleForJoint(t.joint, lm, side)
+      if (raw === null) continue
+      const angle = ema('th:' + t.joint, raw)
       live.push(evaluateThreshold(t, angle))
     }
 
     // 2) Detección de fase + reps + reglas de posición (bottom/top).
     const cfg = REP_CONFIG[exerciseId]
     if (cfg && jointVisible(lm, cfg, side)) {
-      const s =
+      const rawS =
         cfg.mode === 'vertical'
           ? calc.squatDepth(lm, side)
           : cfg.joint === 'knee'
@@ -204,24 +255,39 @@ export function usePostureFeedback() {
             : cfg.joint === 'elbow'
               ? calc.elbowAngle(lm, side)
               : calc.hipAngle(lm, side)
+      const s = ema('traj', rawS) // señal suavizada → fases/reps más estables
 
-      // H: histéresis para confirmar reversión de dirección.
-      // Subida respecto a v1 para que micro-oscilaciones posturas (balanceo, cambio de peso)
-      // no flipping el estado de trayectoria ni disparen evaluateAtExtreme.
-      const H = cfg.mode === 'vertical' ? 12 : 18  // era 8/12
+      // H: histéresis para confirmar reversión de dirección (filtra balanceo/cambio de peso).
+      const H = cfg.mode === 'vertical' ? 12 : 18
       // A: amplitud mínima del movimiento para que sea una rep válida.
       const A = cfg.mode === 'vertical' ? 15 : 28
+      // MOVE: cuánto debe alejarse la señal del reposo para confirmar que la técnica EMPEZÓ.
+      const MOVE = A * 0.45
 
       if (!trajInit) {
+        // Primer frame con la articulación visible: fijamos el reposo.
         trajInit = true
-        minSoFar = maxSoFar = lastTopVal = lastBotVal = s
+        baseline = minSoFar = maxSoFar = lastTopVal = lastBotVal = s
         trajState = 'asc'
+      } else if (!active) {
+        // Aún en setup: esperamos a que el movimiento se aleje del reposo.
+        // La PRIMERA dirección real fija la fase (así no perdemos la 1ª repetición).
+        if (Math.abs(s - baseline) > MOVE) {
+          active = true
+          if (s < baseline) {
+            trajState = 'desc'; minSoFar = s; lastTopVal = baseline
+          } else {
+            trajState = 'asc'; maxSoFar = s; lastBotVal = baseline
+          }
+        } else {
+          // Refinamos el reposo mientras la persona se coloca (promedio lento).
+          baseline = baseline * 0.9 + s * 0.1
+          minSoFar = maxSoFar = lastTopVal = lastBotVal = baseline
+        }
       } else if (trajState === 'desc') {
         if (s < minSoFar) minSoFar = s
         if (s > minSoFar + H) {
           // Mínimo local (posición flexionada) alcanzado.
-          // SOLO disparamos feedback de posición y contamos rep si el movimiento fue suficientemente
-          // amplio — así no generamos feedback-fantasma por simple balanceo o cambio de peso.
           const amp = lastTopVal - minSoFar
           if (amp >= A) {
             evaluateAtExtreme('min', lm, side, knowledge.posture_thresholds, cfg)
@@ -247,6 +313,9 @@ export function usePostureFeedback() {
       }
     }
 
+    // Ejercicios sin patrón de reps: se puntúan siempre (no hay "inicio" que detectar).
+    if (!cfg) active = true
+
     // 3) Combinar throughout + posición fijada, deduplicando por mensaje.
     const combined: FeedbackItem[] = []
     const seen = new Set<string>()
@@ -256,17 +325,32 @@ export function usePostureFeedback() {
       combined.push(item)
     }
 
-    // 4) Historial + puntuación.
-    let frameHasError = false
+    // 4) Debounce: un fallo solo "cuenta" tras varios frames consecutivos presente.
+    const presentBad = new Set<string>()
     for (const item of combined) {
-      accumulate(item)
-      if (item.severity === 'error') frameHasError = true
+      if (item.severity !== 'good') presentBad.add(item.message)
     }
-    totalFrames.value++
-    if (!frameHasError) goodFrames.value++
-    score.value = totalFrames.value > 0
-      ? Math.round((goodFrames.value / totalFrames.value) * 100)
-      : 100
+    for (const msg of presentBad) badStreak.set(msg, (badStreak.get(msg) ?? 0) + 1)
+    for (const msg of [...badStreak.keys()]) {
+      if (!presentBad.has(msg)) badStreak.set(msg, 0)
+    }
+
+    // 5) Historial + puntuación — SOLO cuando la técnica ya se está ejecutando.
+    //    Los frames de "colócate / setup" no penalizan la nota.
+    if (active) {
+      let frameHasError = false
+      for (const item of combined) {
+        if (item.severity === 'good') continue
+        if ((badStreak.get(item.message) ?? 0) < DEBOUNCE_FRAMES) continue
+        accumulate(item)
+        if (item.severity === 'error') frameHasError = true
+      }
+      totalFrames.value++
+      if (!frameHasError) goodFrames.value++
+      score.value = totalFrames.value > 0
+        ? Math.round((goodFrames.value / totalFrames.value) * 100)
+        : 100
+    }
 
     currentFeedback.value = combined
   }
@@ -311,8 +395,13 @@ export function usePostureFeedback() {
     maxSoFar = -Infinity
     lastTopVal = 0
     lastBotVal = 0
+    baseline = 0
+    active = false
+    stickySide = null
     phasicFeedback = []
     feedbackHistory.clear()
+    emaStore.clear()
+    badStreak.clear()
   }
 
   return {
