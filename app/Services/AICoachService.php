@@ -28,9 +28,9 @@ class AICoachService
         $this->minimaxBaseUrl = config('services.minimax.base_url', 'https://api.minimaxi.chat/v1');
     }
 
-    public function streamChat(User $user, array $history, ?string $workoutContext = null): Generator
+    public function streamChat(User $user, array $history, ?string $workoutContext = null, ?string $postureContext = null): Generator
     {
-        $systemPrompt = $this->buildSystemPrompt($user, $workoutContext);
+        $systemPrompt = $this->buildSystemPrompt($user, $workoutContext, $postureContext);
 
         if ($this->minimaxKey) {
             try {
@@ -64,7 +64,7 @@ class AICoachService
         yield 'Lo siento, no hay ningún proveedor de IA configurado. Añade tu API key de MiniMax, Anthropic o Google Gemini en el archivo .env';
     }
 
-    private function buildSystemPrompt(User $user, ?string $workoutContext = null): string
+    private function buildSystemPrompt(User $user, ?string $workoutContext = null, ?string $postureContext = null): string
     {
         $levelLabel = match ($user->level) {
             'beginner'     => 'principiante (0-6 meses)',
@@ -199,6 +199,10 @@ PROMPT;
 
         if ($workoutContext) {
             $prompt .= "\n\n" . $workoutContext;
+        }
+
+        if ($postureContext) {
+            $prompt .= "\n\n" . $postureContext;
         }
 
         return $prompt;

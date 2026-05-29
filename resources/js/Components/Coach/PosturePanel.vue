@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { router } from '@inertiajs/vue3'
 import { useMediaPipe, type PoseResults } from '@/Composables/useMediaPipe'
 import { usePostureFeedback, type SessionSummary } from '@/Composables/usePostureFeedback'
+import { usePostureSession } from '@/Composables/usePostureSession'
 import { useVoiceCoach } from '@/Composables/useVoiceCoach'
 import { EXERCISE_KNOWLEDGE } from '@/data/exerciseKnowledge'
 
@@ -90,7 +91,7 @@ async function analyzeVideoFile(fileUrl: string) {
   // Mostrar resumen si hubo actividad (sin narración: el video se evalúa en silencio)
   const snap = getSummary()
   if (snap.totalFrames > 0) {
-    summary.value = snap
+    applySnapshot(snap)
   } else {
     errorMessage.value = 'No se detectó a ninguna persona en el video. Asegúrate de que el cuerpo se vea completo y bien iluminado.'
   }
@@ -165,6 +166,21 @@ const canvasRef = ref<HTMLCanvasElement | null>(null)
 const { isRunning, errorMessage, start, startVideoFile, stop, librariesLoaded } = useMediaPipe()
 const { currentFeedback, score, repCount, totalFrames, isPersonDetected, processFrame, reset, getSummary } = usePostureFeedback()
 const voice = useVoiceCoach()
+const postureSession = usePostureSession()
+
+/** Asigna el resumen al estado local Y lo publica en el singleton de sesión
+ *  para que el Chat IA lo conozca y pueda dar orientación personalizada. */
+function applySnapshot(snap: SessionSummary) {
+  summary.value = snap
+  postureSession.update({
+    exercise: knowledge.value?.name_es ?? selectedExercise.value,
+    exerciseId: selectedExercise.value,
+    score: snap.finalScore,
+    reps: snap.reps,
+    goodReps: snap.goodReps,
+    aspects: snap.aspects,
+  })
+}
 
 function onResults(results: PoseResults) {
   if (!results.poseLandmarks) return
@@ -275,7 +291,7 @@ async function finishSession() {
     return
   }
   const snap = getSummary()
-  summary.value = snap
+  applySnapshot(snap)
   await stopAnalysis()
   speakFinal(snap.finalScore)
 }
@@ -288,9 +304,12 @@ function saveAndFinish() {
     score: snap.finalScore,
     feedback: snap.topErrors.map(e => e.message),
     duration_sec: 0,
+    reps: snap.reps,
+    good_reps: snap.goodReps,
+    aspects: snap.aspects,
   }, {
     onSuccess: () => {
-      summary.value = snap
+      applySnapshot(snap)
       saved.value = true
       stopAnalysis()
       speakFinal(snap.finalScore)

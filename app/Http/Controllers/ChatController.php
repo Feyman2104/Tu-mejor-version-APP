@@ -28,10 +28,12 @@ class ChatController extends Controller
         $validated = $request->validate([
             'message'         => ['required', 'string', 'max:2000'],
             'workout_context' => ['nullable', 'string', 'max:3000'],
+            'posture_context' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $user           = $request->user();
         $workoutContext = $validated['workout_context'] ?? null;
+        $postureContext = $validated['posture_context'] ?? null;
 
         // Build conversation history BEFORE persisting the new user message
         // to avoid including it twice in the context sent to the AI
@@ -52,10 +54,10 @@ class ChatController extends Controller
         ]);
 
         // Stream SSE response
-        return response()->stream(function () use ($user, $history, $ai, $workoutContext) {
+        return response()->stream(function () use ($user, $history, $ai, $workoutContext, $postureContext) {
             $fullContent = '';
 
-            foreach ($ai->streamChat($user, $history, $workoutContext) as $chunk) {
+            foreach ($ai->streamChat($user, $history, $workoutContext, $postureContext) as $chunk) {
                 $fullContent .= $chunk;
                 echo "data: " . json_encode(['text' => $chunk]) . "\n\n";
                 ob_flush();

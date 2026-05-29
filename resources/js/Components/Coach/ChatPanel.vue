@@ -2,11 +2,13 @@
 import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import { useWorkoutSession } from '@/Composables/useWorkoutSession'
+import { usePostureSession } from '@/Composables/usePostureSession'
 import type { User } from '@/types'
 
 const page = usePage()
 const user = page.props.auth?.user as User | null
 const workoutSession = useWorkoutSession()
+const postureSession = usePostureSession()
 
 interface LocalMessage {
   id: number
@@ -94,6 +96,9 @@ async function send() {
         message: text,
         ...(workoutSession.contextString.value
           ? { workout_context: workoutSession.contextString.value }
+          : {}),
+        ...(postureSession.contextString.value
+          ? { posture_context: postureSession.contextString.value }
           : {}),
       }),
     })

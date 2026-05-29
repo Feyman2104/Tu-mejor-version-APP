@@ -22,6 +22,9 @@ class PostureController extends Controller
             'score'         => ['required', 'integer', 'min:0', 'max:100'],
             'feedback'      => ['required', 'array'],
             'duration_sec'  => ['nullable', 'integer', 'min:0'],
+            'reps'          => ['nullable', 'integer', 'min:0'],
+            'good_reps'     => ['nullable', 'integer', 'min:0'],
+            'aspects'       => ['nullable', 'array'],
         ]);
 
         // Guardar como nota de progreso (se puede extender con tabla posture_sessions en el futuro)
@@ -32,6 +35,9 @@ class PostureController extends Controller
                 'score'         => $validated['score'],
                 'feedback'      => $validated['feedback'],
                 'duration_sec'  => $validated['duration_sec'] ?? 0,
+                'reps'          => $validated['reps'] ?? 0,
+                'good_reps'     => $validated['good_reps'] ?? 0,
+                'aspects'       => $validated['aspects'] ?? [],
             ]),
             'recorded_at' => now(),
         ]);
