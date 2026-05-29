@@ -346,6 +346,41 @@ function scoreColor(val?: number): string {
   if (v >= 50) return '#F59E0B'
   return '#EF4444'
 }
+
+// Color de un punto técnico según su % de acierto.
+function aspectColor(pct: number): string {
+  if (pct >= 85) return '#1DF412'
+  if (pct >= 50) return '#F59E0B'
+  return '#EF4444'
+}
+
+// Veredicto general (encabezado) en función del Score.
+const verdictLabel = computed(() => {
+  const s = summary.value?.finalScore ?? 0
+  if (s >= 80) return 'Muy buena técnica.'
+  if (s >= 50) return 'Técnica en progreso.'
+  return 'Técnica a mejorar.'
+})
+
+// Resumen en lenguaje natural: reps limpias + punto fuerte + punto a pulir.
+const verdictText = computed(() => {
+  const sm = summary.value
+  if (!sm) return ''
+  const parts: string[] = []
+  if (sm.reps > 0) parts.push(`Hiciste ${sm.reps} ${sm.reps === 1 ? 'repetición' : 'repeticiones'} (${sm.goodReps} ${sm.goodReps === 1 ? 'limpia' : 'limpias'}).`)
+  if (sm.aspects.length > 0) {
+    const best = sm.aspects[sm.aspects.length - 1]
+    const worst = sm.aspects[0]
+    if (best.goodPct >= 85) parts.push(`Tu punto fuerte: ${best.label}.`)
+    if (worst.goodPct < 85) parts.push(`A pulir: ${worst.label}.`)
+  }
+  if (parts.length === 1) {
+    parts.push((sm.finalScore >= 80)
+      ? 'Mantén el patrón y sube la carga progresivamente.'
+      : 'Domina el patrón de movimiento antes de añadir peso.')
+  }
+  return parts.join(' ')
+})
 </script>
 
 <template>
@@ -403,8 +438,8 @@ function scoreColor(val?: number): string {
           <div style="font-size:9px;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;margin-top:3px;">Reps</div>
         </div>
         <div style="background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px 6px;text-align:center;">
-          <div style="font-size:22px;font-weight:700;color:#fff;line-height:1;">{{ summary.totalFrames }}</div>
-          <div style="font-size:9px;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;margin-top:3px;">Frames</div>
+          <div style="font-size:22px;font-weight:700;color:#fff;line-height:1;">{{ summary.goodReps }}/{{ summary.reps }}</div>
+          <div style="font-size:9px;color:#6B7280;text-transform:uppercase;letter-spacing:0.08em;margin-top:3px;">Reps buenas</div>
         </div>
         <div style="background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px 6px;text-align:center;">
           <div style="font-size:22px;font-weight:700;line-height:1;"
@@ -415,72 +450,55 @@ function scoreColor(val?: number): string {
         </div>
       </div>
 
-      <!-- Puntos a mejorar -->
+      <!-- Cómo fue tu ejecución — desglose por punto técnico -->
       <div>
         <div style="font-size:10px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">
-          Puntos a mejorar
+          Cómo fue tu ejecución
         </div>
 
-        <!-- Sin errores: sesión perfecta -->
-        <div v-if="summary.topErrors.length === 0"
-          style="text-align:center;padding:20px 16px;background:rgba(29,244,18,0.05);border:1px solid rgba(29,244,18,0.15);border-radius:12px;">
-          <div style="font-size:24px;margin-bottom:6px;">🎉</div>
-          <div style="font-size:13px;font-weight:700;color:#1DF412;margin-bottom:4px;">¡Técnica perfecta!</div>
-          <div style="font-size:12px;color:#6B7280;line-height:1.4;">No se detectaron errores durante la sesión.</div>
+        <!-- Sin datos de puntos (no se llegó a analizar) -->
+        <div v-if="summary.aspects.length === 0"
+          style="text-align:center;padding:18px 16px;background:#161616;border:1px solid rgba(255,255,255,0.06);border-radius:12px;">
+          <div style="font-size:12px;color:#6B7280;line-height:1.4;">No se registraron suficientes repeticiones para evaluar la técnica.</div>
         </div>
 
-        <!-- Lista de errores más frecuentes -->
+        <!-- Lista de TODOS los puntos analizados (peor → mejor) -->
         <div v-else style="display:flex;flex-direction:column;gap:8px;">
-          <div v-for="err in summary.topErrors" :key="err.message"
-            style="background:#161616;border-radius:10px;padding:11px 12px;"
-            :style="err.severity === 'error'
-              ? 'border:1px solid rgba(239,68,68,0.18);'
-              : 'border:1px solid rgba(245,158,11,0.18);'">
+          <div v-for="asp in summary.aspects" :key="asp.label"
+            style="background:#161616;border-radius:10px;padding:11px 12px;border:1px solid"
+            :style="{ borderColor: aspectColor(asp.goodPct) + '2E' }">
 
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:7px;">
-              <div style="display:flex;align-items:flex-start;gap:7px;flex:1;">
-                <div style="flex-shrink:0;margin-top:2px;"
-                  :style="{ color: err.severity === 'error' ? '#EF4444' : '#F59E0B' }">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                    <line x1="12" y1="9" x2="12" y2="13"/>
-                    <line x1="12" y1="17" x2="12.01" y2="17"/>
-                  </svg>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;">
+              <div style="display:flex;align-items:center;gap:7px;flex:1;min-width:0;">
+                <div style="flex-shrink:0;" :style="{ color: aspectColor(asp.goodPct) }">
+                  <svg v-if="asp.goodPct >= 85" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 </div>
-                <span style="font-size:12px;color:#fff;line-height:1.45;">{{ err.message }}</span>
+                <span style="font-size:13px;font-weight:600;color:#fff;line-height:1.3;">{{ asp.label }}</span>
               </div>
-              <span style="font-size:12px;font-weight:700;flex-shrink:0;"
-                :style="{ color: err.severity === 'error' ? '#EF4444' : '#F59E0B' }">
-                {{ err.frequency }}%
+              <span style="font-size:13px;font-weight:800;flex-shrink:0;" :style="{ color: aspectColor(asp.goodPct) }">
+                {{ asp.goodPct }}%
               </span>
             </div>
 
-            <!-- Barra de frecuencia -->
-            <div style="height:3px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden;">
-              <div :style="{
-                height: '100%',
-                borderRadius: '99px',
-                width: err.frequency + '%',
-                background: err.severity === 'error' ? '#EF4444' : '#F59E0B',
-              }"></div>
+            <!-- Barra de acierto -->
+            <div style="height:4px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden;">
+              <div :style="{ height: '100%', borderRadius: '99px', width: asp.goodPct + '%', background: aspectColor(asp.goodPct) }"></div>
+            </div>
+
+            <!-- Consejo cuando el punto no estuvo bien (≥ 85% = correcto) -->
+            <div v-if="asp.goodPct < 85" style="font-size:11px;color:#9CA3AF;line-height:1.4;margin-top:7px;">
+              {{ asp.tip }}
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Interpretación -->
+      <!-- Interpretación / resumen general -->
       <div style="margin-top:14px;padding:12px 14px;border-radius:10px;background:#161616;border:1px solid rgba(255,255,255,0.05);">
-        <div v-if="summary.finalScore >= 80" style="font-size:12px;color:#9CA3AF;line-height:1.5;">
-          <span style="color:#1DF412;font-weight:700;">Muy buena técnica. </span>
-          Mantén el patrón de movimiento y aumenta la carga progresivamente.
-        </div>
-        <div v-else-if="summary.finalScore >= 50" style="font-size:12px;color:#9CA3AF;line-height:1.5;">
-          <span style="color:#F59E0B;font-weight:700;">Técnica en progreso. </span>
-          Trabaja los puntos de la lista antes de añadir más peso.
-        </div>
-        <div v-else style="font-size:12px;color:#9CA3AF;line-height:1.5;">
-          <span style="color:#EF4444;font-weight:700;">Técnica a mejorar. </span>
-          Reduce la carga y enfócate en dominar el patrón de movimiento.
+        <div style="font-size:12px;color:#9CA3AF;line-height:1.55;">
+          <span :style="{ color: scoreColor(summary.finalScore), fontWeight: 700 }">{{ verdictLabel }} </span>
+          {{ verdictText }}
         </div>
       </div>
 

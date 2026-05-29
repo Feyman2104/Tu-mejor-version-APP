@@ -27,12 +27,22 @@ export interface ErrorSummaryItem {
   frequency: number // 0-100: % de frames en que ocurrió
 }
 
+/** Un punto técnico evaluado (ej. "Rango de brazos") con su % de acierto. */
+export interface AspectSummary {
+  label: string                      // etiqueta corta legible
+  goodPct: number                    // 0-100 % de evaluaciones correctas
+  severity: 'warning' | 'error'      // gravedad del fallo asociado
+  tip: string                        // consejo (feedback_bad) cuando goodPct < 85
+}
+
 export interface SessionSummary {
   finalScore: number
   reps: number
+  goodReps: number
   totalFrames: number
   goodFrames: number
   topErrors: ErrorSummaryItem[]
+  aspects: AspectSummary[]
 }
 
 // Cómo detectar fase y reps de cada ejercicio.
@@ -59,15 +69,41 @@ const REP_CONFIG: Record<string, RepConfig> = {
 
 const MIN_VIS = 0.5
 
+// Etiqueta corta y legible por articulación, para el desglose del resumen.
+const ASPECT_LABELS: Record<string, string> = {
+  knee_valgus: 'Alineación de rodillas',
+  stance_width: 'Ancho de pies',
+  squat_depth: 'Profundidad',
+  front_knee: 'Profundidad',
+  knee: 'Profundidad',
+  elbow: 'Rango de brazos',
+  elbow_press: 'Rango de brazos',
+  elbow_extension: 'Rango de brazos',
+  elbow_dip: 'Rango de brazos',
+  elbow_row: 'Rango de brazos',
+  hip_alignment: 'Línea del cuerpo',
+  back: 'Postura del torso',
+  back_neutral: 'Postura del torso',
+  hip: 'Extensión de cadera',
+  hip_extension: 'Extensión de cadera',
+  hip_lockout: 'Extensión de cadera',
+}
+
 export function usePostureFeedback() {
   const calc = useAngleCalculator()
 
   const currentFeedback = ref<FeedbackItem[]>([])
   const score = ref(100)
   const repCount = ref(0)
+  const goodReps = ref(0)
   const goodFrames = ref(0)
   const totalFrames = ref(0)
   const isPersonDetected = ref(false)
+
+  // Calidad acumulada para el Score ponderado: error=0, advertencia=0.5, limpio=1.
+  let qualitySum = 0
+  // ¿La repetición en curso ya tuvo algún fallo? (para contar "reps buenas")
+  let repHadIssue = false
 
   // Estado de la trayectoria del ángulo primario (para fases y conteo de reps).
   let trajState: 'asc' | 'desc' = 'asc'
@@ -104,6 +140,35 @@ export function usePostureFeedback() {
   // Un fallo solo penaliza/acumula tras DEBOUNCE frames → ignora parpadeos de 1-2 frames.
   const DEBOUNCE_FRAMES = 3
   const badStreak = new Map<string, number>()
+
+  // Estadística por punto técnico (checkpoint): aciertos vs. total de evaluaciones.
+  // Alimenta el desglose "Cómo fue tu ejecución" del resumen.
+  interface CheckpointStat {
+    label: string
+    severity: 'warning' | 'error'
+    tip: string
+    good: number
+    total: number
+  }
+  const checkpointStats = new Map<string, CheckpointStat>()
+
+  /** Registra el resultado de evaluar un umbral (solo durante la ejecución activa). */
+  function recordCheckpoint(t: ExerciseThreshold, item: FeedbackItem) {
+    const key = `${t.joint}|${t.condition}`
+    let stat = checkpointStats.get(key)
+    if (!stat) {
+      stat = {
+        label: ASPECT_LABELS[t.joint] ?? t.feedback_good,
+        severity: t.severity,
+        tip: t.feedback_bad,
+        good: 0,
+        total: 0,
+      }
+      checkpointStats.set(key, stat)
+    }
+    stat.total++
+    if (item.severity === 'good') stat.good++
+  }
 
   /** Suma de visibilidad de hombro+cadera+rodilla de un lado. */
   function sideVisibility(lm: Landmark[], side: 'left' | 'right'): number {
@@ -211,7 +276,9 @@ export function usePostureFeedback() {
       const raw = getAngleForJoint(t.joint, lm, side)
       if (raw === null) continue
       const angle = ema('ex:' + t.joint, raw)
-      items.push(evaluateThreshold(t, angle))
+      const item = evaluateThreshold(t, angle)
+      recordCheckpoint(t, item)   // 1 evaluación por extremo (≈ por repetición)
+      items.push(item)
     }
     phasicFeedback = items
   }
@@ -235,13 +302,17 @@ export function usePostureFeedback() {
     isPersonDetected.value = true
 
     // 1) Reglas `throughout` (correcciones en tiempo real), con ángulos suavizados.
+    //    Guardamos también el umbral para registrar la estadística tras conocer `active`.
     const live: FeedbackItem[] = []
+    const liveRules: { t: ExerciseThreshold; item: FeedbackItem }[] = []
     for (const t of knowledge.posture_thresholds) {
       if (t.condition !== 'throughout') continue
       const raw = getAngleForJoint(t.joint, lm, side)
       if (raw === null) continue
       const angle = ema('th:' + t.joint, raw)
-      live.push(evaluateThreshold(t, angle))
+      const item = evaluateThreshold(t, angle)
+      live.push(item)
+      liveRules.push({ t, item })
     }
 
     // 2) Detección de fase + reps + reglas de posición (bottom/top).
@@ -274,6 +345,9 @@ export function usePostureFeedback() {
         // La PRIMERA dirección real fija la fase (así no perdemos la 1ª repetición).
         if (Math.abs(s - baseline) > MOVE) {
           active = true
+          // Descartamos cualquier estadística del "setup": el análisis empieza AQUÍ.
+          checkpointStats.clear()
+          repHadIssue = false
           if (s < baseline) {
             trajState = 'desc'; minSoFar = s; lastTopVal = baseline
           } else {
@@ -291,7 +365,11 @@ export function usePostureFeedback() {
           const amp = lastTopVal - minSoFar
           if (amp >= A) {
             evaluateAtExtreme('min', lm, side, knowledge.posture_thresholds, cfg)
-            if (cfg.restAt === 'flexed') repCount.value++
+            if (cfg.restAt === 'flexed') {
+              repCount.value++
+              if (!repHadIssue) goodReps.value++
+              repHadIssue = false
+            }
             lastBotVal = minSoFar
           }
           trajState = 'asc'
@@ -304,7 +382,11 @@ export function usePostureFeedback() {
           const amp = maxSoFar - lastBotVal
           if (amp >= A) {
             evaluateAtExtreme('max', lm, side, knowledge.posture_thresholds, cfg)
-            if (cfg.restAt === 'extended') repCount.value++
+            if (cfg.restAt === 'extended') {
+              repCount.value++
+              if (!repHadIssue) goodReps.value++
+              repHadIssue = false
+            }
             lastTopVal = maxSoFar
           }
           trajState = 'desc'
@@ -338,17 +420,26 @@ export function usePostureFeedback() {
     // 5) Historial + puntuación — SOLO cuando la técnica ya se está ejecutando.
     //    Los frames de "colócate / setup" no penalizan la nota.
     if (active) {
+      // Estadística por punto técnico de las reglas `throughout` de este frame.
+      for (const { t, item } of liveRules) recordCheckpoint(t, item)
+
       let frameHasError = false
+      let frameHasWarning = false
       for (const item of combined) {
         if (item.severity === 'good') continue
         if ((badStreak.get(item.message) ?? 0) < DEBOUNCE_FRAMES) continue
         accumulate(item)
+        repHadIssue = true   // la repetición en curso ya no es "limpia"
         if (item.severity === 'error') frameHasError = true
+        else frameHasWarning = true
       }
       totalFrames.value++
-      if (!frameHasError) goodFrames.value++
+      // Frame totalmente limpio (ni error ni advertencia) → para "Técnica %".
+      if (!frameHasError && !frameHasWarning) goodFrames.value++
+      // Score ponderado: error penaliza completo, advertencia la mitad.
+      qualitySum += frameHasError ? 0 : frameHasWarning ? 0.5 : 1
       score.value = totalFrames.value > 0
-        ? Math.round((goodFrames.value / totalFrames.value) * 100)
+        ? Math.round((qualitySum / totalFrames.value) * 100)
         : 100
     }
 
@@ -373,12 +464,25 @@ export function usePostureFeedback() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 4)
 
+    // Desglose por punto técnico (peor → mejor), uno por checkpoint evaluado.
+    const aspects: AspectSummary[] = [...checkpointStats.values()]
+      .filter((s) => s.total > 0)
+      .map((s) => ({
+        label: s.label,
+        goodPct: Math.round((s.good / s.total) * 100),
+        severity: s.severity,
+        tip: s.tip,
+      }))
+      .sort((a, b) => a.goodPct - b.goodPct)
+
     return {
       finalScore: score.value,
       reps: repCount.value,
+      goodReps: goodReps.value,
       totalFrames: total,
       goodFrames: goodFrames.value,
       topErrors,
+      aspects,
     }
   }
 
@@ -386,8 +490,11 @@ export function usePostureFeedback() {
     currentFeedback.value = []
     score.value = 100
     repCount.value = 0
+    goodReps.value = 0
     goodFrames.value = 0
     totalFrames.value = 0
+    qualitySum = 0
+    repHadIssue = false
     isPersonDetected.value = false
     trajState = 'asc'
     trajInit = false
@@ -402,12 +509,14 @@ export function usePostureFeedback() {
     feedbackHistory.clear()
     emaStore.clear()
     badStreak.clear()
+    checkpointStats.clear()
   }
 
   return {
     currentFeedback,
     score,
     repCount,
+    goodReps,
     totalFrames,
     isPersonDetected: readonly(isPersonDetected),
     processFrame,
